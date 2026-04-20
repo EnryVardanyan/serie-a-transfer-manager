@@ -127,7 +127,7 @@ h1 {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
 
@@ -321,7 +321,7 @@ h1 {
 
 .squad-slot {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 12px;
@@ -344,6 +344,11 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.squad-slot small {
+  color: #c8d3ca;
+  font-weight: 800;
 }
 
 @media (max-width: 980px) {
@@ -381,7 +386,7 @@ h1 {
 
   .scoreboard,
   .club-picker {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .club-copy h2 {
@@ -390,6 +395,14 @@ h1 {
 
   .player-row {
     grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .squad-slot {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .squad-slot small {
+    grid-column: 2;
   }
 
   .player-row button {

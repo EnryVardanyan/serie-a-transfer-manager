@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import './App.css'
+import serieAPlayers from './data/serieAPlayers'
 
 const clubs = [
   {
@@ -8,8 +9,7 @@ const clubs = [
     budget: 72,
     rating: 86,
     objective: 'Fight for the Scudetto',
-    colors: ['#101820', '#2f80ed'],
-    squad: ['Sommer', 'Bastoni', 'Barella', 'Calhanoglu', 'Lautaro']
+    colors: ['#101820', '#2f80ed']
   },
   {
     name: 'Milan',
@@ -17,8 +17,7 @@ const clubs = [
     budget: 58,
     rating: 83,
     objective: 'Return to the title race',
-    colors: ['#151515', '#e11937'],
-    squad: ['Maignan', 'Tomori', 'Modric', 'Pulisic', 'Leao']
+    colors: ['#151515', '#e11937']
   },
   {
     name: 'Juventus',
@@ -26,8 +25,7 @@ const clubs = [
     budget: 62,
     rating: 84,
     objective: 'Rebuild the dynasty',
-    colors: ['#111111', '#f5f7fa'],
-    squad: ['Di Gregorio', 'Bremer', 'Locatelli', 'Yildiz', 'David']
+    colors: ['#111111', '#f5f7fa']
   },
   {
     name: 'Napoli',
@@ -35,8 +33,7 @@ const clubs = [
     budget: 54,
     rating: 82,
     objective: 'Push back into Europe',
-    colors: ['#0969da', '#12b5cb'],
-    squad: ['Meret', 'Buongiorno', 'Lobotka', 'De Bruyne', 'Politano']
+    colors: ['#0969da', '#12b5cb']
   },
   {
     name: 'Roma',
@@ -44,8 +41,7 @@ const clubs = [
     budget: 44,
     rating: 80,
     objective: 'Build a Champions League squad',
-    colors: ['#8e1f2f', '#f0b429'],
-    squad: ['Svilar', 'Mancini', 'Cristante', 'Dybala', 'Soule']
+    colors: ['#8e1f2f', '#f0b429']
   },
   {
     name: 'Atalanta',
@@ -53,24 +49,36 @@ const clubs = [
     budget: 48,
     rating: 81,
     objective: 'Develop and sell smart',
-    colors: ['#111827', '#18a0fb'],
-    squad: ['Carnesecchi', 'Hien', 'Ederson', 'Lookman', 'Scamacca']
+    colors: ['#111827', '#18a0fb']
   }
-]
-
-const marketPlayers = [
-  { name: 'Riccardo Calafiori', position: 'CB', club: 'Arsenal', price: 38, rating: 81 },
-  { name: 'Nico Williams', position: 'LW', club: 'Athletic Club', price: 65, rating: 85 },
-  { name: 'Giorgio Scalvini', position: 'CB', club: 'Atalanta', price: 34, rating: 80 },
-  { name: 'Samuele Ricci', position: 'CDM', club: 'Milan', price: 28, rating: 79 },
-  { name: 'Jonathan David', position: 'ST', club: 'Juventus', price: 42, rating: 83 }
 ]
 
 function App() {
   const [selectedClub, setSelectedClub] = useState(clubs[0])
   const [signedPlayers, setSignedPlayers] = useState([])
 
-  const spent = signedPlayers.reduce((total, player) => total + player.price, 0)
+  const clubPlayers = useMemo(() => {
+    return serieAPlayers
+      .filter((player) => player.club === selectedClub.name)
+      .sort((firstPlayer, secondPlayer) => secondPlayer.rating - firstPlayer.rating)
+  }, [selectedClub.name])
+
+  const corePlayers = clubPlayers.slice(0, 6)
+
+  const marketPlayers = useMemo(() => {
+    return serieAPlayers
+      .filter((player) => player.club !== selectedClub.name)
+      .sort((firstPlayer, secondPlayer) => {
+        if (secondPlayer.rating !== firstPlayer.rating) {
+          return secondPlayer.rating - firstPlayer.rating
+        }
+
+        return firstPlayer.value - secondPlayer.value
+      })
+      .slice(0, 10)
+  }, [selectedClub.name])
+
+  const spent = signedPlayers.reduce((total, player) => total + player.value, 0)
   const remainingBudget = selectedClub.budget - spent
 
   const affordablePlayers = useMemo(() => {
@@ -79,7 +87,7 @@ function App() {
       canBuy: player.price <= remainingBudget,
       isSigned: signedPlayers.some((signedPlayer) => signedPlayer.name === player.name)
     }))
-  }, [remainingBudget, signedPlayers])
+  }, [marketPlayers, remainingBudget, signedPlayers])
 
   const handleSelectClub = (club) => {
     setSelectedClub(club)
@@ -87,7 +95,7 @@ function App() {
   }
 
   const handleSignPlayer = (player) => {
-    if (player.price > remainingBudget) return
+    if (player.value > remainingBudget) return
     if (signedPlayers.some((signedPlayer) => signedPlayer.name === player.name)) return
 
     setSignedPlayers((currentPlayers) => [...currentPlayers, player])
@@ -127,6 +135,10 @@ function App() {
             <div>
               <span>Signed</span>
               <strong>{signedPlayers.length}</strong>
+            </div>
+            <div>
+              <span>Database</span>
+              <strong>{serieAPlayers.length}</strong>
             </div>
           </div>
 
@@ -168,13 +180,13 @@ function App() {
                   <div className="player-rating">{player.rating}</div>
                   <div className="player-main">
                     <strong>{player.name}</strong>
-                    <span>{player.position} · {player.club}</span>
+                    <span>{player.position} - {player.club} - {player.role}</span>
                   </div>
                   <button
                     disabled={!player.canBuy || player.isSigned}
                     onClick={() => handleSignPlayer(player)}
                   >
-                    {player.isSigned ? 'Signed' : `€${player.price}M`}
+                    {player.isSigned ? 'Signed' : `€${player.value}M`}
                   </button>
                 </article>
               ))}
@@ -188,11 +200,12 @@ function App() {
             </div>
 
             <div className="squad-list">
-              {[...selectedClub.squad, ...signedPlayers.map((player) => player.name)].map(
-                (playerName, index) => (
-                  <div className="squad-slot" key={`${playerName}-${index}`}>
+              {[...corePlayers, ...signedPlayers].map(
+                (player, index) => (
+                  <div className="squad-slot" key={`${player.id}-${index}`}>
                     <span>{index + 1}</span>
-                    <strong>{playerName}</strong>
+                    <strong>{player.name}</strong>
+                    <small>{player.position} - {player.rating}</small>
                   </div>
                 )
               )}
