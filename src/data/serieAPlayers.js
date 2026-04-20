@@ -19,6 +19,7 @@ const rawPlayers = [
   ['Milan', 'Rafael Leao', 'LW', 'Portugal', 26, 86, 87, 65, 7.9, 'Explosive winger'],
   ['Milan', 'Christian Pulisic', 'RW', 'United States', 27, 83, 84, 50, 5.7, 'Inside winger'],
   ['Milan', 'Santiago Gimenez', 'ST', 'Mexico', 25, 80, 83, 20, 4.6, 'Penalty-box striker'],
+  ['Milan', 'Nkunku', 'ST', 'France', 28, 83, 84, 40, 6.3, 'Elegant forward'],
 
   ['Juventus', 'Michele Di Gregorio', 'GK', 'Italy', 28, 83, 84, 14, 4.0, 'Modern goalkeeper'],
   ['Juventus', 'Mattia Perin', 'GK', 'Italy', 33, 78, 78, 2, 2.1, 'Experienced backup'],

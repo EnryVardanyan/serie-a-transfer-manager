@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import './App.css'
+import opponentTeams from './data/opponentTeams'
 import serieAPlayers from './data/serieAPlayers'
 
 const clubs = [
@@ -84,7 +85,7 @@ function App() {
   const affordablePlayers = useMemo(() => {
     return marketPlayers.map((player) => ({
       ...player,
-      canBuy: player.price <= remainingBudget,
+      canBuy: player.value <= remainingBudget,
       isSigned: signedPlayers.some((signedPlayer) => signedPlayer.name === player.name)
     }))
   }, [marketPlayers, remainingBudget, signedPlayers])
@@ -139,6 +140,10 @@ function App() {
             <div>
               <span>Database</span>
               <strong>{serieAPlayers.length}</strong>
+            </div>
+            <div>
+              <span>Opponents</span>
+              <strong>{opponentTeams.length}</strong>
             </div>
           </div>
 
@@ -209,6 +214,23 @@ function App() {
                   </div>
                 )
               )}
+            </div>
+          </section>
+
+          <section className="panel-section opponent-section">
+            <div className="section-heading">
+              <p className="eyebrow">Serie A table</p>
+              <h3>Opponents</h3>
+            </div>
+
+            <div className="opponent-list">
+              {opponentTeams.slice(0, 6).map((team) => (
+                <article className="opponent-row" key={team.name}>
+                  <span>{team.tablePosition}</span>
+                  <strong>{team.name}</strong>
+                  <small>{team.squad.length} players</small>
+                </article>
+              ))}
             </div>
           </section>
         </aside>

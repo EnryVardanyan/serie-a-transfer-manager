@@ -127,7 +127,7 @@ h1 {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
 }
 
@@ -351,6 +351,48 @@ h1 {
   font-weight: 800;
 }
 
+.opponent-section {
+  background: rgba(247, 249, 251, 0.94);
+}
+
+.opponent-list {
+  display: grid;
+  gap: 8px;
+}
+
+.opponent-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #dde5df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.opponent-row span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #121512;
+  color: #f7f9fb;
+  font-weight: 900;
+}
+
+.opponent-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opponent-row small {
+  color: #59635d;
+  font-weight: 800;
+}
+
 @media (max-width: 980px) {
   .game-shell {
     grid-template-columns: 1fr;
@@ -387,6 +429,10 @@ h1 {
   .scoreboard,
   .club-picker {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .scoreboard div:last-child {
+    grid-column: 1 / -1;
   }
 
   .club-copy h2 {
