@@ -121,6 +121,7 @@ function App() {
 
   const nextOpponent = seasonStarted ? seasonFixtures[currentWeek] : null
   const seasonFinished = seasonStarted && currentWeek >= seasonFixtures.length
+  const isHomeMatch = seasonStarted && !seasonFinished ? currentWeek % 2 === 0 : false
   const leagueTeams = useMemo(() => {
     return [...clubs.map((club) => club.name), ...opponentTeams.map((team) => team.name)]
   }, [])
@@ -194,10 +195,12 @@ function App() {
       0,
       Math.min(4, Math.round(1.1 - strengthGap / 7 + ((currentWeek + 1) % 2)))
     )
-    const gateRevenue = Math.max(
-      1,
-      Math.round(2 + selectedClubStrength / 18 + (nextOpponent.rating >= 78 ? 1 : 0))
-    )
+    const gateRevenue = isHomeMatch
+      ? Math.max(
+          1,
+          Math.round(2 + selectedClubStrength / 18 + (nextOpponent.rating >= 78 ? 1 : 0))
+        )
+      : 0
 
     const buildOtherFixtures = () => {
       const remainingTeams = leagueTeams.filter(
@@ -379,11 +382,12 @@ function App() {
       ...currentResults,
       {
         week: currentWeek + 1,
-        homeTeam: selectedClub.name,
-        awayTeam: nextOpponent.name,
-        homeGoals,
-        awayGoals,
+        homeTeam: isHomeMatch ? selectedClub.name : nextOpponent.name,
+        awayTeam: isHomeMatch ? nextOpponent.name : selectedClub.name,
+        homeGoals: isHomeMatch ? homeGoals : awayGoals,
+        awayGoals: isHomeMatch ? awayGoals : homeGoals,
         gateRevenue,
+        isHomeMatch,
         homeEvents: homeEvents.map((event) => ({
           scorer: event.scorer.name,
           assister: event.assister?.name || null
@@ -396,7 +400,9 @@ function App() {
       }
     ])
     setPlayerSeasonStats(nextStats)
-    setHomeRevenue((currentRevenue) => currentRevenue + gateRevenue)
+    if (gateRevenue > 0) {
+      setHomeRevenue((currentRevenue) => currentRevenue + gateRevenue)
+    }
     setCurrentWeek((week) => week + 1)
   }
 
@@ -546,6 +552,7 @@ function App() {
             currentWeek={currentWeek}
             selectedClubName={selectedClub.name}
             nextOpponent={nextOpponent}
+            isHomeMatch={isHomeMatch}
             matchResults={matchResults}
             onPlayNextMatch={handlePlayNextMatch}
             homeRevenue={homeRevenue}

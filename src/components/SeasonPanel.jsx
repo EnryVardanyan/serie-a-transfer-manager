@@ -8,6 +8,7 @@ function SeasonPanel({
   currentWeek,
   selectedClubName,
   nextOpponent,
+  isHomeMatch,
   matchResults,
   onPlayNextMatch,
   homeRevenue,
@@ -40,10 +41,12 @@ function SeasonPanel({
             <div>
               <span>Week {currentWeek + 1}</span>
               <strong>
-                {selectedClubName} vs {nextOpponent.name}
+                {isHomeMatch
+                  ? `${selectedClubName} vs ${nextOpponent.name}`
+                  : `${nextOpponent.name} vs ${selectedClubName}`}
               </strong>
               <small>
-                Opponent rating {nextOpponent.rating} - squad {nextOpponent.squad.length}
+                {isHomeMatch ? 'Home match' : 'Away match'} - Opponent rating {nextOpponent.rating} - squad {nextOpponent.squad.length}
               </small>
             </div>
             <button onClick={onPlayNextMatch}>Play match</button>
@@ -57,14 +60,16 @@ function SeasonPanel({
                 .slice()
                 .reverse()
                 .map((match) => (
-                  <article className="result-row" key={`${match.week}-${match.opponent}`}>
+                  <article className="result-row" key={`${match.week}-${match.homeTeam}-${match.awayTeam}`}>
                     <span>W{match.week}</span>
                     <div className="result-copy">
                       <strong>
-                        {selectedClubName} {match.homeGoals}-{match.awayGoals} {match.opponent}
+                        {match.homeTeam} {match.homeGoals}-{match.awayGoals} {match.awayTeam}
                       </strong>
                       <small>
-                        Gate: EUR {match.gateRevenue}M
+                        {match.isHomeMatch
+                          ? `Gate: EUR ${match.gateRevenue}M`
+                          : 'No home revenue'}
                         {match.homeEvents.length > 0
                           ? ` - Scorers: ${match.homeEvents.map((event) => event.scorer).join(', ')}`
                           : ''}
