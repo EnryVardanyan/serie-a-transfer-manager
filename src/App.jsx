@@ -893,6 +893,9 @@ function App() {
     if (resultReward > 0) {
       setMatchRewards((currentRewards) => currentRewards + resultReward)
     }
+    if (totalReward > 0) {
+      setCashBalance((currentCash) => currentCash + totalReward)
+    }
     setCurrentWeek((week) => week + 1)
   }
 
