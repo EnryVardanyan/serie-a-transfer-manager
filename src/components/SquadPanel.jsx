@@ -5,6 +5,7 @@ function SquadPanel({
   onSelectSlot,
   selectedSlotConfig,
   availableForSlot,
+  unavailablePlayers,
   onAssignPlayer
 }) {
   return (
@@ -54,6 +55,29 @@ function SquadPanel({
               </small>
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="bench-panel">
+        <div className="bench-heading">
+          <strong>Unavailable</strong>
+          <small>{unavailablePlayers.length} out</small>
+        </div>
+
+        <div className="bench-list">
+          {unavailablePlayers.length === 0 ? (
+            <div className="season-empty small">No injuries or suspensions.</div>
+          ) : (
+            unavailablePlayers.map((player) => (
+              <div className="bench-player unavailable" key={`${player.id}-${player.type}`}>
+                <span>{player.rating}</span>
+                <strong>{player.name}</strong>
+                <small>
+                  {player.label} - {player.matchesLeft} match{player.matchesLeft > 1 ? 'es' : ''} left
+                </small>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </section>

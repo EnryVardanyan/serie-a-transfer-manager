@@ -8,8 +8,10 @@ function SeasonPanel({
   currentWeek,
   selectedClubName,
   selectedClubCondition,
+  selectedClubUnavailableCount,
   nextOpponent,
   nextOpponentCondition,
+  nextOpponentUnavailableCount,
   isHomeMatch,
   matchResults,
   onPlayNextMatch,
@@ -57,6 +59,7 @@ function SeasonPanel({
                     Form {selectedClubCondition.form > 0 ? '+' : ''}
                     {selectedClubCondition.form.toFixed(1)} | Fatigue {selectedClubCondition.fatigue.toFixed(1)}
                   </strong>
+                  <small>{selectedClubUnavailableCount} unavailable</small>
                 </div>
                 <div className="fixture-condition-chip">
                   <span>{nextOpponent.name}</span>
@@ -64,6 +67,7 @@ function SeasonPanel({
                     Form {nextOpponentCondition.form > 0 ? '+' : ''}
                     {nextOpponentCondition.form.toFixed(1)} | Fatigue {nextOpponentCondition.fatigue.toFixed(1)}
                   </strong>
+                  <small>{nextOpponentUnavailableCount} unavailable</small>
                 </div>
               </div>
             </div>
@@ -90,6 +94,9 @@ function SeasonPanel({
                           : 'No home revenue'}
                         {match.homeEvents.length > 0
                           ? ` - Scorers: ${match.homeEvents.map((event) => event.scorer).join(', ')}`
+                          : ''}
+                        {match.availabilityNews?.length > 0
+                          ? ` - News: ${match.availabilityNews.join(', ')}`
                           : ''}
                       </small>
                     </div>

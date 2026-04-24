@@ -40,6 +40,26 @@ function getInitialTeamCondition() {
   )
 }
 
+function tickUnavailablePlayers(currentUnavailablePlayers) {
+  return Object.fromEntries(
+    Object.entries(currentUnavailablePlayers).flatMap(([playerId, status]) => {
+      if (status.matchesLeft <= 1) {
+        return []
+      }
+
+      return [
+        [
+          playerId,
+          {
+            ...status,
+            matchesLeft: status.matchesLeft - 1
+          }
+        ]
+      ]
+    })
+  )
+}
+
 function App() {
   const [selectedClub, setSelectedClub] = useState(clubs[0])
   const [signedPlayers, setSignedPlayers] = useState([])
@@ -52,6 +72,7 @@ function App() {
   const [homeRevenue, setHomeRevenue] = useState(0)
   const [playerSeasonStats, setPlayerSeasonStats] = useState({})
   const [teamCondition, setTeamCondition] = useState(getInitialTeamCondition)
+  const [unavailablePlayers, setUnavailablePlayers] = useState({})
 
   const clubPlayers = useMemo(() => {
     return serieAPlayers
@@ -59,17 +80,31 @@ function App() {
       .sort((firstPlayer, secondPlayer) => secondPlayer.rating - firstPlayer.rating)
   }, [selectedClub.name])
 
+  const teamSquads = useMemo(() => {
+    return Object.fromEntries([
+      ...clubs.map((club) => [
+        club.name,
+        serieAPlayers.filter((player) => player.club === club.name)
+      ]),
+      ...opponentTeams.map((team) => [team.name, team.squad])
+    ])
+  }, [])
+
   const squadPool = useMemo(() => {
     return [...clubPlayers, ...signedPlayers].sort(
       (firstPlayer, secondPlayer) => secondPlayer.rating - firstPlayer.rating
     )
   }, [clubPlayers, signedPlayers])
 
+  const availableSquadPool = useMemo(() => {
+    return squadPool.filter((player) => !unavailablePlayers[player.id])
+  }, [squadPool, unavailablePlayers])
+
   const autoLineup = useMemo(() => {
     const usedIds = new Set()
 
     return formationSlots.reduce((lineup, slot) => {
-      const candidate = squadPool.find(
+      const candidate = availableSquadPool.find(
         (player) => slot.allowed.includes(player.position) && !usedIds.has(player.id)
       )
 
@@ -80,14 +115,14 @@ function App() {
 
       return lineup
     }, {})
-  }, [squadPool])
+  }, [availableSquadPool])
 
   const finalLineup = useMemo(() => {
     const lineup = { ...autoLineup }
 
     Object.entries(lineupOverrides).forEach(([slotKey, playerId]) => {
       const slot = formationSlots.find((item) => item.key === slotKey)
-      const player = squadPool.find((item) => item.id === playerId)
+      const player = availableSquadPool.find((item) => item.id === playerId)
 
       if (!slot || !player || !slot.allowed.includes(player.position)) {
         return
@@ -103,19 +138,29 @@ function App() {
     })
 
     return lineup
-  }, [autoLineup, lineupOverrides, squadPool])
+  }, [autoLineup, availableSquadPool, lineupOverrides])
 
   const selectedSlotConfig = formationSlots.find((slot) => slot.key === selectedSlot)
 
   const availableForSlot = useMemo(() => {
-    return squadPool
+    return availableSquadPool
       .filter((player) => selectedSlotConfig.allowed.includes(player.position))
       .map((player) => ({
         ...player,
         isSelected: finalLineup[selectedSlot]?.id === player.id,
         assignedSlot: formationSlots.find((slot) => finalLineup[slot.key]?.id === player.id)?.label || null
       }))
-  }, [finalLineup, selectedSlot, selectedSlotConfig, squadPool])
+  }, [availableSquadPool, finalLineup, selectedSlot, selectedSlotConfig])
+
+  const unavailableClubPlayers = useMemo(() => {
+    return squadPool
+      .filter((player) => unavailablePlayers[player.id])
+      .map((player) => ({
+        ...player,
+        ...unavailablePlayers[player.id]
+      }))
+      .sort((firstPlayer, secondPlayer) => secondPlayer.matchesLeft - firstPlayer.matchesLeft)
+  }, [squadPool, unavailablePlayers])
 
   const marketPlayers = useMemo(() => {
     return serieAPlayers
@@ -178,6 +223,38 @@ function App() {
   const nextOpponentCondition = nextOpponent
     ? teamCondition[nextOpponent.name] || { form: 0, fatigue: 0 }
     : { form: 0, fatigue: 0 }
+  const selectedClubUnavailableCount = unavailableClubPlayers.length
+  const nextOpponentUnavailableCount = nextOpponent
+    ? (teamSquads[nextOpponent.name] || []).filter((player) => unavailablePlayers[player.id]).length
+    : 0
+
+  const buildAvailableLineup = (teamName) => {
+    const availablePlayers = [...(teamSquads[teamName] || [])]
+      .filter((player) => !unavailablePlayers[player.id])
+      .sort((firstPlayer, secondPlayer) => secondPlayer.rating - firstPlayer.rating)
+    const usedIds = new Set()
+    const lineup = []
+
+    formationSlots.forEach((slot) => {
+      const candidate = availablePlayers.find(
+        (player) => slot.allowed.includes(player.position) && !usedIds.has(player.id)
+      )
+
+      if (candidate) {
+        usedIds.add(candidate.id)
+        lineup.push(candidate)
+      }
+    })
+
+    availablePlayers.forEach((player) => {
+      if (lineup.length < 11 && !usedIds.has(player.id)) {
+        usedIds.add(player.id)
+        lineup.push(player)
+      }
+    })
+
+    return lineup
+  }
 
   const handleSelectClub = (club) => {
     setSelectedClub(club)
@@ -190,6 +267,7 @@ function App() {
     setHomeRevenue(0)
     setPlayerSeasonStats({})
     setTeamCondition(getInitialTeamCondition())
+    setUnavailablePlayers({})
   }
 
   const handleSignPlayer = (player) => {
@@ -207,6 +285,7 @@ function App() {
     setHomeRevenue(0)
     setPlayerSeasonStats({})
     setTeamCondition(getInitialTeamCondition())
+    setUnavailablePlayers({})
   }
 
   const handleAssignPlayerToSlot = (playerId) => {
@@ -237,13 +316,11 @@ function App() {
     }
 
     const opponentStrength = Math.round(
-      nextOpponent.squad.reduce((sum, player) => sum + player.rating, 0) /
-        nextOpponent.squad.length
+      buildAvailableLineup(nextOpponent.name).reduce((sum, player) => sum + player.rating, 0) /
+        Math.max(buildAvailableLineup(nextOpponent.name).length, 1)
     )
     const homeLineup = formationSlots.map((slot) => finalLineup[slot.key]).filter(Boolean)
-    const awayLineup = [...nextOpponent.squad]
-      .sort((firstPlayer, secondPlayer) => secondPlayer.rating - firstPlayer.rating)
-      .slice(0, 11)
+    const awayLineup = buildAvailableLineup(nextOpponent.name)
     const selectedClubMatchStrength =
       selectedClubStrength + currentClubCondition.form * 1.15 - currentClubCondition.fatigue * 0.95
     const opponentMatchStrength =
@@ -316,12 +393,22 @@ function App() {
 
         if (!awayTeam) continue
 
+        const homeLineup = buildAvailableLineup(homeTeam)
+        const awayLineup = buildAvailableLineup(awayTeam)
         const homeCondition = teamCondition[homeTeam] || { form: 0, fatigue: 0 }
         const awayCondition = teamCondition[awayTeam] || { form: 0, fatigue: 0 }
         const homeEffectiveRating =
-          (teamRatings[homeTeam] || 74) + homeCondition.form * 1.05 - homeCondition.fatigue * 0.85
+          (homeLineup.reduce((sum, player) => sum + player.rating, 0) / Math.max(homeLineup.length, 1) ||
+            teamRatings[homeTeam] ||
+            74) +
+          homeCondition.form * 1.05 -
+          homeCondition.fatigue * 0.85
         const awayEffectiveRating =
-          (teamRatings[awayTeam] || 74) + awayCondition.form * 1.05 - awayCondition.fatigue * 0.85
+          (awayLineup.reduce((sum, player) => sum + player.rating, 0) / Math.max(awayLineup.length, 1) ||
+            teamRatings[awayTeam] ||
+            74) +
+          awayCondition.form * 1.05 -
+          awayCondition.fatigue * 0.85
         const ratingGap = homeEffectiveRating - awayEffectiveRating
         const fixtureSwing = nextRandom() * 1.2 - 0.6
         const awaySwing = nextRandom() * 1.1 - 0.55
@@ -337,6 +424,8 @@ function App() {
         fixtures.push({
           homeTeam,
           awayTeam,
+          homeLineup,
+          awayLineup,
           homeGoals: homeScore,
           awayGoals: awayScore
         })
@@ -376,15 +465,26 @@ function App() {
       }
 
       const fallback = fallbackPlayers.filter((player) => player.id !== excludedId)
+      if (fallback.length === 0) {
+        return null
+      }
+
       return fallback[Math.floor(nextRandom() * fallback.length)]
     }
 
     const createGoalEvents = (goals, lineup) => {
+      if (goals === 0 || lineup.length === 0) {
+        return []
+      }
+
       const scorerPool = getWeightedContributors(lineup, true)
       const assistPool = getWeightedContributors(lineup, false)
 
       return Array.from({ length: goals }, () => {
         const scorer = pickRandomPlayer(scorerPool, lineup)
+        if (!scorer) {
+          return null
+        }
         const assisted = nextRandom() > 0.18
         const assister = assisted
           ? pickRandomPlayer(assistPool, lineup, scorer.id)
@@ -394,7 +494,7 @@ function App() {
           scorer,
           assister
         }
-      })
+      }).filter(Boolean)
     }
 
     const homeEvents = createGoalEvents(homeGoals, homeLineup)
@@ -476,17 +576,50 @@ function App() {
       })
     }
 
-    registerGoalEvents(homeEvents)
-    registerGoalEvents(awayEvents)
+    const registerFixtureStats = (homeLineupPlayers, awayLineupPlayers, homeFixtureEvents, awayFixtureEvents, goalsForHome, goalsForAway) => {
+      registerGoalEvents(homeFixtureEvents)
+      registerGoalEvents(awayFixtureEvents)
 
-    buildRatingMap(homeLineup, homeEvents, homeGoals, awayGoals).forEach(({ player, rating }) => {
-      registerLineupAppearance(player, rating)
-    })
-    buildRatingMap(awayLineup, awayEvents, awayGoals, homeGoals).forEach(({ player, rating }) => {
-      registerLineupAppearance(player, rating)
+      buildRatingMap(homeLineupPlayers, homeFixtureEvents, goalsForHome, goalsForAway).forEach(
+        ({ player, rating }) => {
+          registerLineupAppearance(player, rating)
+        }
+      )
+      buildRatingMap(awayLineupPlayers, awayFixtureEvents, goalsForAway, goalsForHome).forEach(
+        ({ player, rating }) => {
+          registerLineupAppearance(player, rating)
+        }
+      )
+    }
+
+    registerFixtureStats(homeLineup, awayLineup, homeEvents, awayEvents, homeGoals, awayGoals)
+
+    otherFixtures.forEach((fixture) => {
+      const fixtureHomeEvents = createGoalEvents(fixture.homeGoals, fixture.homeLineup)
+      const fixtureAwayEvents = createGoalEvents(fixture.awayGoals, fixture.awayLineup)
+
+      fixture.homeEvents = fixtureHomeEvents.map((event) => ({
+        scorer: event.scorer.name,
+        assister: event.assister?.name || null
+      }))
+      fixture.awayEvents = fixtureAwayEvents.map((event) => ({
+        scorer: event.scorer.name,
+        assister: event.assister?.name || null
+      }))
+
+      registerFixtureStats(
+        fixture.homeLineup,
+        fixture.awayLineup,
+        fixtureHomeEvents,
+        fixtureAwayEvents,
+        fixture.homeGoals,
+        fixture.awayGoals
+      )
     })
 
     const nextCondition = { ...teamCondition }
+    const nextUnavailablePlayers = tickUnavailablePlayers(unavailablePlayers)
+    const availabilityNews = []
 
     const updateTeamCondition = (teamName, goalsFor, goalsAgainst) => {
       const currentCondition = nextCondition[teamName] || { form: 0, fatigue: 0 }
@@ -502,11 +635,57 @@ function App() {
       }
     }
 
+    const addAvailabilityIssue = (player, type, matchesLeft) => {
+      if (!player) {
+        return
+      }
+
+      const currentIssue = nextUnavailablePlayers[player.id]
+      nextUnavailablePlayers[player.id] = {
+        type,
+        matchesLeft: Math.max(currentIssue?.matchesLeft || 0, matchesLeft),
+        label: type === 'injury' ? 'Injured' : 'Suspended',
+        club: player.club,
+        name: player.name
+      }
+    }
+
+    const rollAvailabilityEvents = (lineup, clubName, includeNews = false) => {
+      if (lineup.length === 0) {
+        return
+      }
+
+      const outfieldPlayers = lineup.filter((player) => player.position !== 'GK')
+
+      if (outfieldPlayers.length > 0 && nextRandom() > 0.88) {
+        const injuredPlayer = pickRandomPlayer(outfieldPlayers, lineup)
+        const injuryLength = 1 + Math.floor(nextRandom() * 3)
+        addAvailabilityIssue(injuredPlayer, 'injury', injuryLength)
+
+        if (includeNews) {
+          availabilityNews.push(`${injuredPlayer.name} injured for ${injuryLength} match${injuryLength > 1 ? 'es' : ''}`)
+        }
+      }
+
+      if (outfieldPlayers.length > 0 && nextRandom() > 0.9) {
+        const suspendedPlayer = pickRandomPlayer(outfieldPlayers, lineup)
+        addAvailabilityIssue(suspendedPlayer, 'suspension', 1)
+
+        if (includeNews) {
+          availabilityNews.push(`${suspendedPlayer.name} suspended for next match`)
+        }
+      }
+    }
+
     updateTeamCondition(selectedClub.name, homeGoals, awayGoals)
     updateTeamCondition(nextOpponent.name, awayGoals, homeGoals)
+    rollAvailabilityEvents(homeLineup, selectedClub.name, true)
+    rollAvailabilityEvents(awayLineup, nextOpponent.name, true)
     otherFixtures.forEach((fixture) => {
       updateTeamCondition(fixture.homeTeam, fixture.homeGoals, fixture.awayGoals)
       updateTeamCondition(fixture.awayTeam, fixture.awayGoals, fixture.homeGoals)
+      rollAvailabilityEvents(fixture.homeLineup, fixture.homeTeam)
+      rollAvailabilityEvents(fixture.awayLineup, fixture.awayTeam)
     })
 
     setMatchResults((currentResults) => [
@@ -527,11 +706,13 @@ function App() {
           scorer: event.scorer.name,
           assister: event.assister?.name || null
         })),
-        otherFixtures
+        otherFixtures,
+        availabilityNews
       }
     ])
     setPlayerSeasonStats(nextStats)
     setTeamCondition(nextCondition)
+    setUnavailablePlayers(nextUnavailablePlayers)
     if (gateRevenue > 0) {
       setHomeRevenue((currentRevenue) => currentRevenue + gateRevenue)
     }
@@ -676,6 +857,7 @@ function App() {
             onSelectSlot={setSelectedSlot}
             selectedSlotConfig={selectedSlotConfig}
             availableForSlot={availableForSlot}
+            unavailablePlayers={unavailableClubPlayers}
             onAssignPlayer={handleAssignPlayerToSlot}
           />
           <SeasonPanel
@@ -685,8 +867,10 @@ function App() {
             currentWeek={currentWeek}
             selectedClubName={selectedClub.name}
             selectedClubCondition={selectedClubCondition}
+            selectedClubUnavailableCount={selectedClubUnavailableCount}
             nextOpponent={nextOpponent}
             nextOpponentCondition={nextOpponentCondition}
+            nextOpponentUnavailableCount={nextOpponentUnavailableCount}
             isHomeMatch={isHomeMatch}
             matchResults={matchResults}
             onPlayNextMatch={handlePlayNextMatch}
