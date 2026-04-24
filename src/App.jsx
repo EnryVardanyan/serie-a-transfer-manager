@@ -89,6 +89,21 @@ function App() {
       ...opponentTeams.map((team) => [team.name, team.squad])
     ])
   }, [])
+  const teamDirectory = useMemo(() => {
+    return Object.fromEntries([
+      ...clubs.map((club, index) => [
+        club.name,
+        {
+          name: club.name,
+          city: club.city,
+          rating: club.rating,
+          squad: teamSquads[club.name] || [],
+          tablePosition: index + 1
+        }
+      ]),
+      ...opponentTeams.map((team) => [team.name, team])
+    ])
+  }, [teamSquads])
 
   const squadPool = useMemo(() => {
     return [...clubPlayers, ...signedPlayers].sort(
@@ -191,15 +206,6 @@ function App() {
     return Math.round(totalRating / activePlayers.length)
   }, [finalLineup, selectedClub.rating])
 
-  const seasonFixtures = useMemo(() => {
-    return [...opponentTeams].sort(
-      (firstTeam, secondTeam) => firstTeam.tablePosition - secondTeam.tablePosition
-    )
-  }, [])
-
-  const nextOpponent = seasonStarted ? seasonFixtures[currentWeek] : null
-  const seasonFinished = seasonStarted && currentWeek >= seasonFixtures.length
-  const isHomeMatch = seasonStarted && !seasonFinished ? currentWeek % 2 === 0 : false
   const leagueTeams = useMemo(() => {
     return [...clubs.map((club) => club.name), ...opponentTeams.map((team) => team.name)]
   }, [])
@@ -209,6 +215,36 @@ function App() {
       ...opponentTeams.map((team) => [team.name, team.rating])
     ])
   }, [])
+
+  const seasonFixtures = useMemo(() => {
+    const opponents = leagueTeams
+      .filter((teamName) => teamName !== selectedClub.name)
+      .map((teamName) => teamDirectory[teamName])
+      .filter(Boolean)
+      .sort((firstTeam, secondTeam) => {
+        if ((firstTeam.tablePosition || 99) !== (secondTeam.tablePosition || 99)) {
+          return (firstTeam.tablePosition || 99) - (secondTeam.tablePosition || 99)
+        }
+
+        return secondTeam.rating - firstTeam.rating
+      })
+
+    const firstLeg = opponents.map((team, index) => ({
+      opponent: team,
+      isHomeMatch: index % 2 === 0
+    }))
+    const secondLeg = opponents.map((team, index) => ({
+      opponent: team,
+      isHomeMatch: index % 2 !== 0
+    }))
+
+    return [...firstLeg, ...secondLeg]
+  }, [leagueTeams, selectedClub.name, teamDirectory])
+
+  const nextFixture = seasonStarted ? seasonFixtures[currentWeek] : null
+  const nextOpponent = nextFixture?.opponent || null
+  const seasonFinished = seasonStarted && currentWeek >= seasonFixtures.length
+  const isHomeMatch = seasonStarted && !seasonFinished ? nextFixture?.isHomeMatch || false : false
 
   const affordablePlayers = useMemo(() => {
     return marketPlayers.map((player) => ({
