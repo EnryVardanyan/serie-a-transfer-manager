@@ -60,6 +60,55 @@ function tickUnavailablePlayers(currentUnavailablePlayers) {
   )
 }
 
+function generateRoundRobinSchedule(teamNames) {
+  const teams = [...teamNames]
+
+  if (teams.length % 2 !== 0) {
+    teams.push(null)
+  }
+
+  const rounds = []
+  let rotation = [...teams]
+  const halfSize = rotation.length / 2
+
+  for (let roundIndex = 0; roundIndex < rotation.length - 1; roundIndex += 1) {
+    const fixtures = []
+
+    for (let pairIndex = 0; pairIndex < halfSize; pairIndex += 1) {
+      const firstTeam = rotation[pairIndex]
+      const secondTeam = rotation[rotation.length - 1 - pairIndex]
+
+      if (!firstTeam || !secondTeam) {
+        continue
+      }
+
+      const reverseHomeAway = (roundIndex + pairIndex) % 2 === 1
+
+      fixtures.push(
+        reverseHomeAway
+          ? { homeTeam: secondTeam, awayTeam: firstTeam }
+          : { homeTeam: firstTeam, awayTeam: secondTeam }
+      )
+    }
+
+    rounds.push(fixtures)
+    rotation = [
+      rotation[0],
+      rotation[rotation.length - 1],
+      ...rotation.slice(1, rotation.length - 1)
+    ]
+  }
+
+  const secondLeg = rounds.map((fixtures) =>
+    fixtures.map((fixture) => ({
+      homeTeam: fixture.awayTeam,
+      awayTeam: fixture.homeTeam
+    }))
+  )
+
+  return [...rounds, ...secondLeg]
+}
+
 function App() {
   const [selectedClub, setSelectedClub] = useState(clubs[0])
   const [signedPlayers, setSignedPlayers] = useState([])
@@ -209,42 +258,16 @@ function App() {
   const leagueTeams = useMemo(() => {
     return [...clubs.map((club) => club.name), ...opponentTeams.map((team) => team.name)]
   }, [])
-  const teamRatings = useMemo(() => {
-    return Object.fromEntries([
-      ...clubs.map((club) => [club.name, club.rating]),
-      ...opponentTeams.map((team) => [team.name, team.rating])
-    ])
-  }, [])
-
-  const seasonFixtures = useMemo(() => {
-    const opponents = leagueTeams
-      .filter((teamName) => teamName !== selectedClub.name)
-      .map((teamName) => teamDirectory[teamName])
-      .filter(Boolean)
-      .sort((firstTeam, secondTeam) => {
-        if ((firstTeam.tablePosition || 99) !== (secondTeam.tablePosition || 99)) {
-          return (firstTeam.tablePosition || 99) - (secondTeam.tablePosition || 99)
-        }
-
-        return secondTeam.rating - firstTeam.rating
-      })
-
-    const firstLeg = opponents.map((team, index) => ({
-      opponent: team,
-      isHomeMatch: index % 2 === 0
-    }))
-    const secondLeg = opponents.map((team, index) => ({
-      opponent: team,
-      isHomeMatch: index % 2 !== 0
-    }))
-
-    return [...firstLeg, ...secondLeg]
-  }, [leagueTeams, selectedClub.name, teamDirectory])
-
-  const nextFixture = seasonStarted ? seasonFixtures[currentWeek] : null
-  const nextOpponent = nextFixture?.opponent || null
-  const seasonFinished = seasonStarted && currentWeek >= seasonFixtures.length
-  const isHomeMatch = seasonStarted && !seasonFinished ? nextFixture?.isHomeMatch || false : false
+  const fullSeasonSchedule = useMemo(() => generateRoundRobinSchedule(leagueTeams), [leagueTeams])
+  const currentRoundFixtures = seasonStarted ? fullSeasonSchedule[currentWeek] || null : null
+  const nextFixture = currentRoundFixtures?.find(
+    (fixture) => fixture.homeTeam === selectedClub.name || fixture.awayTeam === selectedClub.name
+  )
+  const nextOpponent = nextFixture
+    ? teamDirectory[nextFixture.homeTeam === selectedClub.name ? nextFixture.awayTeam : nextFixture.homeTeam]
+    : null
+  const seasonFinished = seasonStarted && currentWeek >= fullSeasonSchedule.length
+  const isHomeMatch = seasonStarted && !seasonFinished ? nextFixture?.homeTeam === selectedClub.name : false
 
   const affordablePlayers = useMemo(() => {
     return marketPlayers.map((player) => ({
@@ -332,10 +355,8 @@ function App() {
   }
 
   const handlePlayNextMatch = () => {
-    if (!nextOpponent) return
+    if (!nextOpponent || !nextFixture || !currentRoundFixtures) return
 
-    const currentClubCondition = teamCondition[selectedClub.name] || { form: 0, fatigue: 0 }
-    const currentOpponentCondition = teamCondition[nextOpponent.name] || { form: 0, fatigue: 0 }
     const matchupSeed =
       stringSeed(selectedClub.name) * 11 +
       stringSeed(nextOpponent.name) * 7 +
@@ -351,57 +372,69 @@ function App() {
       return seededNumber(matchSeedBase + randomCursor)
     }
 
-    const opponentStrength = Math.round(
-      buildAvailableLineup(nextOpponent.name).reduce((sum, player) => sum + player.rating, 0) /
-        Math.max(buildAvailableLineup(nextOpponent.name).length, 1)
-    )
-    const homeLineup = formationSlots.map((slot) => finalLineup[slot.key]).filter(Boolean)
-    const awayLineup = buildAvailableLineup(nextOpponent.name)
-    const selectedClubMatchStrength =
-      selectedClubStrength + currentClubCondition.form * 1.15 - currentClubCondition.fatigue * 0.95
-    const opponentMatchStrength =
-      opponentStrength + currentOpponentCondition.form * 1.1 - currentOpponentCondition.fatigue * 0.9
-    const strengthGap = selectedClubMatchStrength - opponentMatchStrength
-    const attackSwing = nextRandom() * 1.4 - 0.7
-    const defendingSwing = nextRandom() * 1.2 - 0.6
-    const finishingSwing = nextRandom() * 1.1 - 0.55
-    const opponentFinishingSwing = nextRandom() * 1.1 - 0.55
-    const momentumBoost = nextRandom() > 0.72 ? 0.45 : 0
-    const opponentMomentumBoost = nextRandom() > 0.76 ? 0.4 : 0
-    const fatigueSwing = currentOpponentCondition.fatigue * 0.2 - currentClubCondition.fatigue * 0.18
-    const homeAdvantage = isHomeMatch ? 0.32 : -0.12
-    const homeGoals = Math.max(
-      0,
-      Math.min(
-        5,
-        Math.round(
-          1.05 +
-            strengthGap / 7 +
-            homeAdvantage +
-            fatigueSwing +
-            attackSwing +
-            finishingSwing +
-            nextRandom() * 1.35 +
-            momentumBoost
-        )
-      )
-    )
-    const awayGoals = Math.max(
-      0,
-      Math.min(
-        5,
-        Math.round(
-          0.9 -
-            strengthGap / 8 +
-            defendingSwing +
-            opponentFinishingSwing +
-            nextRandom() * 1.25 +
-            opponentMomentumBoost -
-            fatigueSwing * 0.6 -
-            homeAdvantage * 0.65
-        )
-      )
-    )
+    const simulateFixture = (homeTeam, awayTeam) => {
+      const homeLineup =
+        homeTeam === selectedClub.name
+          ? formationSlots.map((slot) => finalLineup[slot.key]).filter(Boolean)
+          : buildAvailableLineup(homeTeam)
+      const awayLineup =
+        awayTeam === selectedClub.name
+          ? formationSlots.map((slot) => finalLineup[slot.key]).filter(Boolean)
+          : buildAvailableLineup(awayTeam)
+
+      const homeCondition = teamCondition[homeTeam] || { form: 0, fatigue: 0 }
+      const awayCondition = teamCondition[awayTeam] || { form: 0, fatigue: 0 }
+      const homeBaseStrength =
+        homeTeam === selectedClub.name
+          ? selectedClubStrength
+          : Math.round(
+              homeLineup.reduce((sum, player) => sum + player.rating, 0) / Math.max(homeLineup.length, 1)
+            )
+      const awayBaseStrength =
+        awayTeam === selectedClub.name
+          ? selectedClubStrength
+          : Math.round(
+              awayLineup.reduce((sum, player) => sum + player.rating, 0) / Math.max(awayLineup.length, 1)
+            )
+
+      const homeEffectiveStrength =
+        homeBaseStrength + homeCondition.form * 0.7 - homeCondition.fatigue * 0.65 + 0.35
+      const awayEffectiveStrength =
+        awayBaseStrength + awayCondition.form * 0.7 - awayCondition.fatigue * 0.65
+      const strengthGap = homeEffectiveStrength - awayEffectiveStrength
+      const homeExpected = 1.05 + strengthGap / 18 + nextRandom() * 0.85
+      const awayExpected = 0.9 - strengthGap / 20 + nextRandom() * 0.8
+
+      let homeGoals = clamp(Math.round(homeExpected + nextRandom() * 0.7 - 0.35), 0, 4)
+      let awayGoals = clamp(Math.round(awayExpected + nextRandom() * 0.7 - 0.35), 0, 4)
+
+      if (Math.abs(strengthGap) < 4 && nextRandom() > 0.45) {
+        const drawGoals = clamp(Math.round(((homeExpected + awayExpected) / 2) * 0.75), 0, 3)
+        homeGoals = drawGoals
+        awayGoals = drawGoals
+      } else if (Math.abs(homeGoals - awayGoals) > 2 && nextRandom() > 0.55) {
+        if (homeGoals > awayGoals) {
+          homeGoals -= 1
+        } else {
+          awayGoals -= 1
+        }
+      }
+
+      return {
+        homeTeam,
+        awayTeam,
+        homeLineup,
+        awayLineup,
+        homeGoals,
+        awayGoals
+      }
+    }
+
+    const selectedMatch = simulateFixture(nextFixture.homeTeam, nextFixture.awayTeam)
+    const homeLineup = selectedMatch.homeLineup
+    const awayLineup = selectedMatch.awayLineup
+    const homeGoals = selectedMatch.homeGoals
+    const awayGoals = selectedMatch.awayGoals
     const gateRevenue = isHomeMatch
       ? Math.max(
           1,
@@ -413,62 +446,6 @@ function App() {
           )
         )
       : 0
-
-    const buildOtherFixtures = () => {
-      const remainingTeams = leagueTeams.filter(
-        (teamName) => teamName !== selectedClub.name && teamName !== nextOpponent.name
-      )
-      const rotatedTeams = remainingTeams.map((teamName, index) => {
-        return remainingTeams[(index + currentWeek) % remainingTeams.length]
-      })
-      const fixtures = []
-
-      for (let index = 0; index < rotatedTeams.length; index += 2) {
-        const homeTeam = rotatedTeams[index]
-        const awayTeam = rotatedTeams[index + 1]
-
-        if (!awayTeam) continue
-
-        const homeLineup = buildAvailableLineup(homeTeam)
-        const awayLineup = buildAvailableLineup(awayTeam)
-        const homeCondition = teamCondition[homeTeam] || { form: 0, fatigue: 0 }
-        const awayCondition = teamCondition[awayTeam] || { form: 0, fatigue: 0 }
-        const homeEffectiveRating =
-          (homeLineup.reduce((sum, player) => sum + player.rating, 0) / Math.max(homeLineup.length, 1) ||
-            teamRatings[homeTeam] ||
-            74) +
-          homeCondition.form * 1.05 -
-          homeCondition.fatigue * 0.85
-        const awayEffectiveRating =
-          (awayLineup.reduce((sum, player) => sum + player.rating, 0) / Math.max(awayLineup.length, 1) ||
-            teamRatings[awayTeam] ||
-            74) +
-          awayCondition.form * 1.05 -
-          awayCondition.fatigue * 0.85
-        const ratingGap = homeEffectiveRating - awayEffectiveRating
-        const fixtureSwing = nextRandom() * 1.2 - 0.6
-        const awaySwing = nextRandom() * 1.1 - 0.55
-        const homeScore = Math.max(
-          0,
-          Math.min(5, Math.round(0.95 + ratingGap / 9 + fixtureSwing + nextRandom() * 1.2))
-        )
-        const awayScore = Math.max(
-          0,
-          Math.min(5, Math.round(0.8 - ratingGap / 10 + awaySwing + nextRandom() * 1.1))
-        )
-
-        fixtures.push({
-          homeTeam,
-          awayTeam,
-          homeLineup,
-          awayLineup,
-          homeGoals: homeScore,
-          awayGoals: awayScore
-        })
-      }
-
-      return fixtures
-    }
 
     const getWeightedContributors = (players, scorerMode = false) => {
       return players.flatMap((player) => {
@@ -535,7 +512,12 @@ function App() {
 
     const homeEvents = createGoalEvents(homeGoals, homeLineup)
     const awayEvents = createGoalEvents(awayGoals, awayLineup)
-    const otherFixtures = buildOtherFixtures()
+    const otherFixtures = currentRoundFixtures
+      .filter(
+        (fixture) =>
+          !(fixture.homeTeam === nextFixture.homeTeam && fixture.awayTeam === nextFixture.awayTeam)
+      )
+      .map((fixture) => simulateFixture(fixture.homeTeam, fixture.awayTeam))
 
     const nextStats = { ...playerSeasonStats }
 
@@ -713,10 +695,18 @@ function App() {
       }
     }
 
-    updateTeamCondition(selectedClub.name, homeGoals, awayGoals)
-    updateTeamCondition(nextOpponent.name, awayGoals, homeGoals)
-    rollAvailabilityEvents(homeLineup, selectedClub.name, true)
-    rollAvailabilityEvents(awayLineup, nextOpponent.name, true)
+    updateTeamCondition(selectedMatch.homeTeam, selectedMatch.homeGoals, selectedMatch.awayGoals)
+    updateTeamCondition(selectedMatch.awayTeam, selectedMatch.awayGoals, selectedMatch.homeGoals)
+    rollAvailabilityEvents(
+      homeLineup,
+      selectedMatch.homeTeam,
+      selectedMatch.homeTeam === selectedClub.name || selectedMatch.awayTeam === selectedClub.name
+    )
+    rollAvailabilityEvents(
+      awayLineup,
+      selectedMatch.awayTeam,
+      selectedMatch.homeTeam === selectedClub.name || selectedMatch.awayTeam === selectedClub.name
+    )
     otherFixtures.forEach((fixture) => {
       updateTeamCondition(fixture.homeTeam, fixture.homeGoals, fixture.awayGoals)
       updateTeamCondition(fixture.awayTeam, fixture.awayGoals, fixture.homeGoals)
@@ -728,10 +718,10 @@ function App() {
       ...currentResults,
       {
         week: currentWeek + 1,
-        homeTeam: isHomeMatch ? selectedClub.name : nextOpponent.name,
-        awayTeam: isHomeMatch ? nextOpponent.name : selectedClub.name,
-        homeGoals: isHomeMatch ? homeGoals : awayGoals,
-        awayGoals: isHomeMatch ? awayGoals : homeGoals,
+        homeTeam: selectedMatch.homeTeam,
+        awayTeam: selectedMatch.awayTeam,
+        homeGoals: selectedMatch.homeGoals,
+        awayGoals: selectedMatch.awayGoals,
         gateRevenue,
         isHomeMatch,
         homeEvents: homeEvents.map((event) => ({
@@ -873,7 +863,7 @@ function App() {
           databaseCount={serieAPlayers.length}
           opponentsCount={opponentTeams.length}
           homeRevenue={homeRevenue}
-          seasonFixturesCount={seasonFixtures.length}
+          seasonFixturesCount={fullSeasonSchedule.length}
           seasonStarted={seasonStarted}
           onStartSeason={handleStartSeason}
           clubs={clubs}
@@ -899,7 +889,7 @@ function App() {
           <SeasonPanel
             seasonStarted={seasonStarted}
             seasonFinished={seasonFinished}
-            seasonFixturesCount={seasonFixtures.length}
+            seasonFixturesCount={fullSeasonSchedule.length}
             currentWeek={currentWeek}
             selectedClubName={selectedClub.name}
             selectedClubCondition={selectedClubCondition}
