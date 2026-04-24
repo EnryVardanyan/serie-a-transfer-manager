@@ -109,6 +109,45 @@ function generateRoundRobinSchedule(teamNames) {
   return [...rounds, ...secondLeg]
 }
 
+function balanceSelectedClubFixtures(rounds, clubName) {
+  const balancedRounds = rounds.map((fixtures) => fixtures.map((fixture) => ({ ...fixture })))
+  let previousWasHome = null
+  let streak = 0
+
+  balancedRounds.forEach((fixtures) => {
+    const fixtureIndex = fixtures.findIndex(
+      (fixture) => fixture.homeTeam === clubName || fixture.awayTeam === clubName
+    )
+
+    if (fixtureIndex === -1) {
+      return
+    }
+
+    const fixture = fixtures[fixtureIndex]
+    let isHome = fixture.homeTeam === clubName
+
+    if (previousWasHome === isHome) {
+      streak += 1
+    } else {
+      streak = 1
+    }
+
+    if (streak >= 3) {
+      fixtures[fixtureIndex] = {
+        homeTeam: fixture.awayTeam,
+        awayTeam: fixture.homeTeam
+      }
+
+      isHome = !isHome
+      streak = 1
+    }
+
+    previousWasHome = isHome
+  })
+
+  return balancedRounds
+}
+
 const emergencyCoverMap = {
   lb: ['CB', 'RB', 'LM', 'CDM'],
   cb1: ['LB', 'RB', 'CDM'],
@@ -300,7 +339,9 @@ function App() {
   const leagueTeams = useMemo(() => {
     return [...clubs.map((club) => club.name), ...opponentTeams.map((team) => team.name)]
   }, [])
-  const fullSeasonSchedule = useMemo(() => generateRoundRobinSchedule(leagueTeams), [leagueTeams])
+  const fullSeasonSchedule = useMemo(() => {
+    return balanceSelectedClubFixtures(generateRoundRobinSchedule(leagueTeams), selectedClub.name)
+  }, [leagueTeams, selectedClub.name])
   const currentRoundFixtures = seasonStarted ? fullSeasonSchedule[currentWeek] || null : null
   const nextFixture = currentRoundFixtures?.find(
     (fixture) => fixture.homeTeam === selectedClub.name || fixture.awayTeam === selectedClub.name
