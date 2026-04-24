@@ -1,16 +1,80 @@
-# React + Vite
+# Serie A Transfer Manager
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React football manager game focused on Serie A career mode, squad building, transfers, and season simulation.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Serie A Transfer Manager lets you choose a Serie A club, build a squad, sign players from the transfer market, and play through a multi-season career.
 
-## React Compiler
+The project is built as a browser game with React and Vite. It uses local game data for clubs, players, transfer values, ratings, fixtures, form, fatigue, injuries, suspensions, and league standings.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the ESLint configuration
+- Choose a playable Serie A club
+- Build and manage a Starting XI
+- Sign players from a rotating transfer market
+- Track club budget, matchday income, and result rewards
+- Play a full 38-match league season
+- Continue a career across 3 seasons
+- Earn prize money based on final league position
+- Simulate matches using team rating, form, fatigue, home advantage, and squad availability
+- Handle injuries and suspensions for user and opponent squads
+- View league table, top scorers, assists, and WhoScored-style ratings
+- Use emergency position cover when a natural player is unavailable
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Tech Stack
+
+- React
+- Vite
+- JavaScript
+- CSS
+
+## Getting Started
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
+
+```bash
+npm run dev
+```
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+Run lint checks:
+
+```bash
+npm run lint
+```
+
+## Project Structure
+
+```text
+src/
+  components/        UI panels for club, squad, market, season, and standings
+  data/              Serie A clubs, players, opponents, and game config
+  App.jsx            Main career state and match simulation logic
+  App.css            Main game styling
+```
+
+## Current Scope
+
+The game currently runs fully in the browser. Career progress is session-based and not yet saved permanently after refresh.
+
+Planned improvements:
+
+- Save career progress with localStorage
+- Add player growth and decline between seasons
+- Add a finance screen
+- Add transfer history
+- Add cup competitions
+- Add end-of-season awards
+
