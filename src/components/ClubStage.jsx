@@ -2,6 +2,7 @@ function ClubStage({
   selectedClub,
   remainingBudget,
   selectedClubStrength,
+  selectedClubCondition,
   signedPlayersCount,
   databaseCount,
   opponentsCount,
@@ -22,6 +23,14 @@ function ClubStage({
         <div>
           <span>Team rating</span>
           <strong>{selectedClubStrength}</strong>
+        </div>
+        <div>
+          <span>Form</span>
+          <strong>{selectedClubCondition.form > 0 ? `+${selectedClubCondition.form.toFixed(1)}` : selectedClubCondition.form.toFixed(1)}</strong>
+        </div>
+        <div>
+          <span>Fatigue</span>
+          <strong>{selectedClubCondition.fatigue.toFixed(1)}</strong>
         </div>
         <div>
           <span>Signed</span>
@@ -50,6 +59,10 @@ function ClubStage({
           Control transfers, protect the wage room, and build a squad that
           can handle the Serie A season.
         </p>
+        <div className="club-condition-strip">
+          <span>{selectedClubCondition.form >= 1 ? 'Hot streak' : selectedClubCondition.form <= -1 ? 'Under pressure' : 'Balanced form'}</span>
+          <span>{selectedClubCondition.fatigue >= 2.2 ? 'Heavy legs' : selectedClubCondition.fatigue >= 1.2 ? 'Match load building' : 'Fresh squad'}</span>
+        </div>
         <div className="hero-actions">
           <button onClick={onStartSeason}>
             {seasonStarted ? 'Restart season' : 'Start season'}

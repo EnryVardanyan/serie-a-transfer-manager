@@ -7,7 +7,9 @@ function SeasonPanel({
   seasonFixturesCount,
   currentWeek,
   selectedClubName,
+  selectedClubCondition,
   nextOpponent,
+  nextOpponentCondition,
   isHomeMatch,
   matchResults,
   onPlayNextMatch,
@@ -48,6 +50,22 @@ function SeasonPanel({
               <small>
                 {isHomeMatch ? 'Home match' : 'Away match'} - Opponent rating {nextOpponent.rating} - squad {nextOpponent.squad.length}
               </small>
+              <div className="fixture-condition-row">
+                <div className="fixture-condition-chip">
+                  <span>{selectedClubName}</span>
+                  <strong>
+                    Form {selectedClubCondition.form > 0 ? '+' : ''}
+                    {selectedClubCondition.form.toFixed(1)} | Fatigue {selectedClubCondition.fatigue.toFixed(1)}
+                  </strong>
+                </div>
+                <div className="fixture-condition-chip">
+                  <span>{nextOpponent.name}</span>
+                  <strong>
+                    Form {nextOpponentCondition.form > 0 ? '+' : ''}
+                    {nextOpponentCondition.form.toFixed(1)} | Fatigue {nextOpponentCondition.fatigue.toFixed(1)}
+                  </strong>
+                </div>
+              </div>
             </div>
             <button onClick={onPlayNextMatch}>Play match</button>
           </article>

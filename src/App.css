@@ -127,7 +127,7 @@ h1 {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
 
@@ -212,6 +212,23 @@ h1 {
 
 .hero-actions span {
   color: #dce5dd;
+  font-weight: 800;
+}
+
+.club-condition-strip {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.club-condition-strip span {
+  padding: 9px 12px;
+  border: 1px solid rgba(247, 249, 251, 0.18);
+  border-radius: 8px;
+  background: rgba(18, 21, 18, 0.5);
+  color: #f7f9fb;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -549,6 +566,36 @@ h1 {
   margin: 6px 0;
 }
 
+.fixture-condition-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.fixture-condition-chip {
+  padding: 10px 12px;
+  border: 1px solid #dde5df;
+  border-radius: 8px;
+  background: #f5f7f6;
+}
+
+.fixture-condition-chip span,
+.fixture-condition-chip strong {
+  display: block;
+}
+
+.fixture-condition-chip span {
+  color: #59635d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.fixture-condition-chip strong {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
 .fixture-card button {
   border: none;
   border-radius: 8px;
@@ -749,8 +796,8 @@ h1 {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .scoreboard div:last-child {
-    grid-column: 1 / -1;
+  .scoreboard div:nth-last-child(-n + 2) {
+    grid-column: span 1;
   }
 
   .club-copy h2 {
@@ -776,6 +823,10 @@ h1 {
   .fixture-card {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .fixture-condition-row {
+    grid-template-columns: 1fr;
   }
 
   .fixture-card button {
