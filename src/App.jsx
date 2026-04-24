@@ -9,10 +9,26 @@ import opponentTeams from './data/opponentTeams'
 import { clubs, formationSlots } from './data/gameConfig'
 import serieAPlayers from './data/serieAPlayers'
 
+function seededNumber(seed) {
+  const value = Math.sin(seed) * 10000
+  return value - Math.floor(value)
+}
+
+function getRandomSeasonSeed() {
+  return Math.floor(Math.random() * 1000000000)
+}
+
+function stringSeed(value) {
+  return [...value].reduce((sum, character, index) => {
+    return sum + character.charCodeAt(0) * (index + 1)
+  }, 0)
+}
+
 function App() {
   const [selectedClub, setSelectedClub] = useState(clubs[0])
   const [signedPlayers, setSignedPlayers] = useState([])
   const [seasonStarted, setSeasonStarted] = useState(false)
+  const [seasonSeed, setSeasonSeed] = useState(getRandomSeasonSeed)
   const [currentWeek, setCurrentWeek] = useState(0)
   const [matchResults, setMatchResults] = useState([])
   const [selectedSlot, setSelectedSlot] = useState('st')
@@ -162,6 +178,7 @@ function App() {
 
   const handleStartSeason = () => {
     setSeasonStarted(true)
+    setSeasonSeed(getRandomSeasonSeed())
     setCurrentWeek(0)
     setMatchResults([])
     setHomeRevenue(0)
@@ -178,6 +195,21 @@ function App() {
   const handlePlayNextMatch = () => {
     if (!nextOpponent) return
 
+    const matchupSeed =
+      stringSeed(selectedClub.name) * 11 +
+      stringSeed(nextOpponent.name) * 7 +
+      currentWeek * 131
+    const matchSeedBase =
+      seasonSeed +
+      matchupSeed +
+      selectedClubStrength * 13 +
+      nextOpponent.rating * 7
+    let randomCursor = 0
+    const nextRandom = () => {
+      randomCursor += 1
+      return seededNumber(matchSeedBase + randomCursor)
+    }
+
     const opponentStrength = Math.round(
       nextOpponent.squad.reduce((sum, player) => sum + player.rating, 0) /
         nextOpponent.squad.length
@@ -187,18 +219,52 @@ function App() {
       .sort((firstPlayer, secondPlayer) => secondPlayer.rating - firstPlayer.rating)
       .slice(0, 11)
     const strengthGap = selectedClubStrength - opponentStrength
+    const attackSwing = nextRandom() * 1.4 - 0.7
+    const defendingSwing = nextRandom() * 1.2 - 0.6
+    const finishingSwing = nextRandom() * 1.1 - 0.55
+    const opponentFinishingSwing = nextRandom() * 1.1 - 0.55
+    const momentumBoost = nextRandom() > 0.72 ? 0.45 : 0
+    const opponentMomentumBoost = nextRandom() > 0.76 ? 0.4 : 0
+    const homeAdvantage = isHomeMatch ? 0.32 : -0.12
     const homeGoals = Math.max(
       0,
-      Math.min(4, Math.round(1.6 + strengthGap / 6 + ((currentWeek % 3) - 1)))
+      Math.min(
+        5,
+        Math.round(
+          1.05 +
+            strengthGap / 7 +
+            homeAdvantage +
+            attackSwing +
+            finishingSwing +
+            nextRandom() * 1.35 +
+            momentumBoost
+        )
+      )
     )
     const awayGoals = Math.max(
       0,
-      Math.min(4, Math.round(1.1 - strengthGap / 7 + ((currentWeek + 1) % 2)))
+      Math.min(
+        5,
+        Math.round(
+          0.9 -
+            strengthGap / 8 +
+            defendingSwing +
+            opponentFinishingSwing +
+            nextRandom() * 1.25 +
+            opponentMomentumBoost -
+            homeAdvantage * 0.65
+        )
+      )
     )
     const gateRevenue = isHomeMatch
       ? Math.max(
           1,
-          Math.round(2 + selectedClubStrength / 18 + (nextOpponent.rating >= 78 ? 1 : 0))
+          Math.round(
+            2 +
+              selectedClubStrength / 18 +
+              (nextOpponent.rating >= 78 ? 1 : 0) +
+              nextRandom() * 1.5
+          )
         )
       : 0
 
@@ -218,13 +284,15 @@ function App() {
         if (!awayTeam) continue
 
         const ratingGap = (teamRatings[homeTeam] || 74) - (teamRatings[awayTeam] || 74)
+        const fixtureSwing = nextRandom() * 1.2 - 0.6
+        const awaySwing = nextRandom() * 1.1 - 0.55
         const homeScore = Math.max(
           0,
-          Math.min(4, Math.round(1.4 + ratingGap / 8 + ((index + currentWeek) % 2)))
+          Math.min(5, Math.round(0.95 + ratingGap / 9 + fixtureSwing + nextRandom() * 1.2))
         )
         const awayScore = Math.max(
           0,
-          Math.min(4, Math.round(1.1 - ratingGap / 9 + ((index + currentWeek + 1) % 2)))
+          Math.min(5, Math.round(0.8 - ratingGap / 10 + awaySwing + nextRandom() * 1.1))
         )
 
         fixtures.push({
@@ -265,11 +333,11 @@ function App() {
       const availablePlayers = players.filter((player) => player.id !== excludedId)
 
       if (availablePlayers.length > 0) {
-        return availablePlayers[Math.floor(Math.random() * availablePlayers.length)]
+        return availablePlayers[Math.floor(nextRandom() * availablePlayers.length)]
       }
 
       const fallback = fallbackPlayers.filter((player) => player.id !== excludedId)
-      return fallback[Math.floor(Math.random() * fallback.length)]
+      return fallback[Math.floor(nextRandom() * fallback.length)]
     }
 
     const createGoalEvents = (goals, lineup) => {
@@ -278,7 +346,7 @@ function App() {
 
       return Array.from({ length: goals }, () => {
         const scorer = pickRandomPlayer(scorerPool, lineup)
-        const assisted = Math.random() > 0.18
+        const assisted = nextRandom() > 0.18
         const assister = assisted
           ? pickRandomPlayer(assistPool, lineup, scorer.id)
           : null
