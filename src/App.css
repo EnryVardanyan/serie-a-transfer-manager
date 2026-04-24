@@ -342,34 +342,98 @@ h1 {
   color: #f7f9fb;
 }
 
-.squad-slot {
+.lineup-grid {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(247, 249, 251, 0.08);
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
 
-.squad-slot span {
-  width: 38px;
-  height: 38px;
+.lineup-slot {
   display: grid;
-  place-items: center;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(247, 249, 251, 0.12);
+  border-radius: 8px;
+  background: rgba(247, 249, 251, 0.08);
+  color: #f7f9fb;
+  cursor: pointer;
+  text-align: left;
+}
+
+.lineup-slot.active {
+  border-color: color-mix(in srgb, var(--club-accent) 75%, #f7f9fb);
+  background: rgba(247, 249, 251, 0.16);
+}
+
+.lineup-slot span {
+  width: fit-content;
+  padding: 6px 8px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--club-accent) 75%, #f7f9fb);
   color: #121512;
+  font-size: 12px;
   font-weight: 900;
 }
 
-.squad-slot strong {
+.lineup-slot strong,
+.bench-player strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.squad-slot small {
+.lineup-slot small {
+  color: #c8d3ca;
+  font-weight: 800;
+}
+
+.bench-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(247, 249, 251, 0.12);
+}
+
+.bench-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.bench-heading small {
+  color: #c8d3ca;
+  font-weight: 800;
+}
+
+.bench-list {
+  display: grid;
+  gap: 8px;
+}
+
+.bench-player {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(247, 249, 251, 0.08);
+}
+
+.bench-player span {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #f7f9fb;
+  color: #121512;
+  font-weight: 900;
+}
+
+.bench-player small {
+  grid-column: 2;
   color: #c8d3ca;
   font-weight: 800;
 }
@@ -557,12 +621,8 @@ h1 {
     width: 100%;
   }
 
-  .squad-slot {
-    grid-template-columns: 38px minmax(0, 1fr);
-  }
-
-  .squad-slot small {
-    grid-column: 2;
+  .lineup-grid {
+    grid-template-columns: 1fr;
   }
 
   .player-row button {
