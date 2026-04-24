@@ -3,6 +3,8 @@ function ClubStage({
   remainingBudget,
   selectedClubStrength,
   selectedClubCondition,
+  seasonNumber,
+  maxCareerSeasons,
   signedPlayersCount,
   databaseCount,
   opponentsCount,
@@ -10,7 +12,11 @@ function ClubStage({
   matchRewards,
   seasonFixturesCount,
   seasonStarted,
+  seasonFinished,
+  careerFinished,
+  seasonPlacementReward,
   onStartSeason,
+  onContinueSeason,
   clubs,
   onSelectClub
 }) {
@@ -69,11 +75,23 @@ function ClubStage({
           <span>{selectedClubCondition.fatigue >= 2.2 ? 'Heavy legs' : selectedClubCondition.fatigue >= 1.2 ? 'Match load building' : 'Fresh squad'}</span>
         </div>
         <div className="hero-actions">
-          <button onClick={onStartSeason}>
-            {seasonStarted ? 'Restart season' : 'Start season'}
-          </button>
+          {seasonFinished ? (
+            <button disabled={careerFinished} onClick={() => onContinueSeason(seasonPlacementReward)}>
+              {careerFinished ? 'Career complete' : `Continue to season ${seasonNumber + 1}`}
+            </button>
+          ) : (
+            <button disabled={seasonStarted} onClick={onStartSeason}>
+              {seasonStarted ? `Season ${seasonNumber} in progress` : `Start season ${seasonNumber}`}
+            </button>
+          )}
           <span>{seasonFixturesCount} league matches ready</span>
         </div>
+        {seasonFinished ? (
+          <div className="club-condition-strip">
+            <span>Season {seasonNumber} payout: EUR {seasonPlacementReward}M</span>
+            <span>{careerFinished ? `Career ended after ${maxCareerSeasons} seasons` : 'Transfer list refreshed next season'}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="club-picker" aria-label="Choose Serie A club">

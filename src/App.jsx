@@ -40,6 +40,18 @@ function getInitialTeamCondition() {
   )
 }
 
+function getPlacementReward(rank) {
+  if (rank === 1) return 40
+  if (rank === 2) return 28
+  if (rank === 3) return 22
+  if (rank === 4) return 18
+  if (rank === 5) return 14
+  if (rank === 6) return 10
+  if (rank <= 8) return 6
+  if (rank <= 12) return 3
+  return 1
+}
+
 function tickUnavailablePlayers(currentUnavailablePlayers) {
   return Object.fromEntries(
     Object.entries(currentUnavailablePlayers).flatMap(([playerId, status]) => {
@@ -188,14 +200,18 @@ function getSlotCandidatePool(slot, players) {
 }
 
 function App() {
+  const maxCareerSeasons = 3
   const [selectedClub, setSelectedClub] = useState(clubs[0])
   const [signedPlayers, setSignedPlayers] = useState([])
   const [seasonStarted, setSeasonStarted] = useState(false)
+  const [seasonNumber, setSeasonNumber] = useState(1)
   const [seasonSeed, setSeasonSeed] = useState(getRandomSeasonSeed)
+  const [transferWindowSeed, setTransferWindowSeed] = useState(getRandomSeasonSeed)
   const [currentWeek, setCurrentWeek] = useState(0)
   const [matchResults, setMatchResults] = useState([])
   const [selectedSlot, setSelectedSlot] = useState('st')
   const [lineupOverrides, setLineupOverrides] = useState({})
+  const [cashBalance, setCashBalance] = useState(clubs[0].budget)
   const [homeRevenue, setHomeRevenue] = useState(0)
   const [matchRewards, setMatchRewards] = useState(0)
   const [playerSeasonStats, setPlayerSeasonStats] = useState({})
@@ -309,19 +325,31 @@ function App() {
 
   const marketPlayers = useMemo(() => {
     return serieAPlayers
-      .filter((player) => player.club !== selectedClub.name)
+      .filter(
+        (player) =>
+          player.club !== selectedClub.name &&
+          !signedPlayers.some((signedPlayer) => signedPlayer.name === player.name)
+      )
       .sort((firstPlayer, secondPlayer) => {
-        if (secondPlayer.rating !== firstPlayer.rating) {
-          return secondPlayer.rating - firstPlayer.rating
+        const firstScore =
+          firstPlayer.rating * 5 -
+          firstPlayer.value +
+          seededNumber(transferWindowSeed + stringSeed(firstPlayer.name)) * 18
+        const secondScore =
+          secondPlayer.rating * 5 -
+          secondPlayer.value +
+          seededNumber(transferWindowSeed + stringSeed(secondPlayer.name)) * 18
+
+        if (secondScore !== firstScore) {
+          return secondScore - firstScore
         }
 
         return firstPlayer.value - secondPlayer.value
       })
-      .slice(0, 10)
-  }, [selectedClub.name])
+      .slice(0, 12)
+  }, [selectedClub.name, signedPlayers, transferWindowSeed])
 
-  const spent = signedPlayers.reduce((total, player) => total + player.value, 0)
-  const remainingBudget = selectedClub.budget + homeRevenue + matchRewards - spent
+  const remainingBudget = cashBalance
 
   const selectedClubStrength = useMemo(() => {
     const activePlayers = formationSlots
@@ -351,6 +379,7 @@ function App() {
     : null
   const seasonFinished = seasonStarted && currentWeek >= fullSeasonSchedule.length
   const isHomeMatch = seasonStarted && !seasonFinished ? nextFixture?.homeTeam === selectedClub.name : false
+  const careerFinished = seasonFinished && seasonNumber >= maxCareerSeasons
 
   const affordablePlayers = useMemo(() => {
     return marketPlayers.map((player) => ({
@@ -402,11 +431,15 @@ function App() {
   const handleSelectClub = (club) => {
     setSelectedClub(club)
     setSignedPlayers([])
+    setSeasonNumber(1)
     setSeasonStarted(false)
+    setSeasonSeed(getRandomSeasonSeed())
+    setTransferWindowSeed(getRandomSeasonSeed())
     setCurrentWeek(0)
     setMatchResults([])
     setSelectedSlot('st')
     setLineupOverrides({})
+    setCashBalance(club.budget)
     setHomeRevenue(0)
     setMatchRewards(0)
     setPlayerSeasonStats({})
@@ -419,6 +452,7 @@ function App() {
     if (signedPlayers.some((signedPlayer) => signedPlayer.name === player.name)) return
 
     setSignedPlayers((currentPlayers) => [...currentPlayers, player])
+    setCashBalance((currentCash) => currentCash - player.value)
   }
 
   const handleStartSeason = () => {
@@ -426,6 +460,25 @@ function App() {
     setSeasonSeed(getRandomSeasonSeed())
     setCurrentWeek(0)
     setMatchResults([])
+    setHomeRevenue(0)
+    setMatchRewards(0)
+    setPlayerSeasonStats({})
+    setTeamCondition(getInitialTeamCondition())
+    setUnavailablePlayers({})
+  }
+
+  const handleContinueSeason = (placementReward) => {
+    if (!seasonFinished || seasonNumber >= maxCareerSeasons) return
+
+    setCashBalance((currentCash) => currentCash + placementReward)
+    setSeasonNumber((currentSeason) => currentSeason + 1)
+    setSeasonStarted(true)
+    setSeasonSeed(getRandomSeasonSeed())
+    setTransferWindowSeed(getRandomSeasonSeed())
+    setCurrentWeek(0)
+    setMatchResults([])
+    setSelectedSlot('st')
+    setLineupOverrides({})
     setHomeRevenue(0)
     setMatchRewards(0)
     setPlayerSeasonStats({})
@@ -936,6 +989,11 @@ function App() {
     }
   }, [playerSeasonStats])
 
+  const selectedClubStanding = standings.find((row) => row.team === selectedClub.name)
+  const seasonPlacementReward = selectedClubStanding
+    ? getPlacementReward(selectedClubStanding.rank)
+    : 0
+
   return (
     <div
       className="app"
@@ -946,8 +1004,10 @@ function App() {
     >
       <TopBar
         clubName={selectedClub.name}
+        seasonNumber={seasonNumber}
         seasonStarted={seasonStarted}
         seasonFinished={seasonFinished}
+        careerFinished={careerFinished}
         currentWeek={currentWeek}
       />
 
@@ -957,6 +1017,8 @@ function App() {
           remainingBudget={remainingBudget}
           selectedClubStrength={selectedClubStrength}
           selectedClubCondition={selectedClubCondition}
+          seasonNumber={seasonNumber}
+          maxCareerSeasons={maxCareerSeasons}
           signedPlayersCount={signedPlayers.length}
           databaseCount={serieAPlayers.length}
           opponentsCount={opponentTeams.length}
@@ -964,7 +1026,11 @@ function App() {
           matchRewards={matchRewards}
           seasonFixturesCount={fullSeasonSchedule.length}
           seasonStarted={seasonStarted}
+          seasonFinished={seasonFinished}
+          careerFinished={careerFinished}
+          seasonPlacementReward={seasonPlacementReward}
           onStartSeason={handleStartSeason}
+          onContinueSeason={handleContinueSeason}
           clubs={clubs}
           onSelectClub={handleSelectClub}
         />
@@ -1001,6 +1067,11 @@ function App() {
             onPlayNextMatch={handlePlayNextMatch}
             homeRevenue={homeRevenue}
             matchRewards={matchRewards}
+            seasonNumber={seasonNumber}
+            maxCareerSeasons={maxCareerSeasons}
+            seasonPlacementReward={seasonPlacementReward}
+            selectedClubStanding={selectedClubStanding}
+            careerFinished={careerFinished}
             standings={standings}
             seasonLeaders={seasonLeaders}
           />

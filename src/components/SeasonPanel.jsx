@@ -17,6 +17,11 @@ function SeasonPanel({
   onPlayNextMatch,
   homeRevenue,
   matchRewards,
+  seasonNumber,
+  maxCareerSeasons,
+  seasonPlacementReward,
+  selectedClubStanding,
+  careerFinished,
   standings,
   seasonLeaders
 }) {
@@ -43,7 +48,8 @@ function SeasonPanel({
         </div>
       ) : seasonFinished ? (
         <div className="season-empty">
-          All {seasonFixturesCount} league weeks are complete.
+          All {seasonFixturesCount} league weeks are complete. {selectedClubStanding ? `${selectedClubName} finished ${selectedClubStanding.rank}${selectedClubStanding.rank === 1 ? 'st' : selectedClubStanding.rank === 2 ? 'nd' : selectedClubStanding.rank === 3 ? 'rd' : 'th'} and will earn EUR ${seasonPlacementReward}M.` : ''}
+          {careerFinished ? ` Career finished after ${maxCareerSeasons} seasons.` : ` Continue to season ${seasonNumber + 1} to refresh the transfer market.`}
         </div>
       ) : (
         <>

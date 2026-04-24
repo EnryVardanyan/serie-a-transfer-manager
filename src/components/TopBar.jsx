@@ -1,4 +1,4 @@
-function TopBar({ clubName, seasonStarted, seasonFinished, currentWeek }) {
+function TopBar({ clubName, seasonNumber, seasonStarted, seasonFinished, careerFinished, currentWeek }) {
   return (
     <header className="topbar">
       <div className="brand">
@@ -11,10 +11,12 @@ function TopBar({ clubName, seasonStarted, seasonFinished, currentWeek }) {
 
       <div className="save-pill">
         {seasonStarted && !seasonFinished
-          ? `Week ${currentWeek + 1} - Serie A season`
+          ? `Season ${seasonNumber} - Week ${currentWeek + 1}`
           : seasonFinished
-            ? 'Season complete'
-            : 'Pre-season - Summer window'}
+            ? careerFinished
+              ? `Season ${seasonNumber} complete - Career finished`
+              : `Season ${seasonNumber} complete`
+            : `Pre-season - Season ${seasonNumber}`}
       </div>
     </header>
   )
