@@ -1,3 +1,6 @@
+import LeagueTable from './LeagueTable'
+import SeasonLeaders from './SeasonLeaders'
+
 function SeasonPanel({
   seasonStarted,
   seasonFinished,
@@ -7,7 +10,9 @@ function SeasonPanel({
   nextOpponent,
   matchResults,
   onPlayNextMatch,
-  homeRevenue
+  homeRevenue,
+  standings,
+  seasonLeaders
 }) {
   return (
     <section className="panel-section opponent-section">
@@ -54,16 +59,26 @@ function SeasonPanel({
                 .map((match) => (
                   <article className="result-row" key={`${match.week}-${match.opponent}`}>
                     <span>W{match.week}</span>
-                    <strong>
-                      {selectedClubName} {match.homeGoals}-{match.awayGoals} {match.opponent}
-                    </strong>
-                    <small>Gate: EUR {match.gateRevenue}M</small>
+                    <div className="result-copy">
+                      <strong>
+                        {selectedClubName} {match.homeGoals}-{match.awayGoals} {match.opponent}
+                      </strong>
+                      <small>
+                        Gate: EUR {match.gateRevenue}M
+                        {match.homeEvents.length > 0
+                          ? ` - Scorers: ${match.homeEvents.map((event) => event.scorer).join(', ')}`
+                          : ''}
+                      </small>
+                    </div>
                   </article>
                 ))
             )}
           </div>
         </>
       )}
+
+      <LeagueTable standings={standings} />
+      <SeasonLeaders seasonLeaders={seasonLeaders} />
     </section>
   )
 }

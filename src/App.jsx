@@ -18,6 +18,7 @@ function App() {
   const [selectedSlot, setSelectedSlot] = useState('st')
   const [lineupOverrides, setLineupOverrides] = useState({})
   const [homeRevenue, setHomeRevenue] = useState(0)
+  const [playerSeasonStats, setPlayerSeasonStats] = useState({})
 
   const clubPlayers = useMemo(() => {
     return serieAPlayers
@@ -120,6 +121,15 @@ function App() {
 
   const nextOpponent = seasonStarted ? seasonFixtures[currentWeek] : null
   const seasonFinished = seasonStarted && currentWeek >= seasonFixtures.length
+  const leagueTeams = useMemo(() => {
+    return [...clubs.map((club) => club.name), ...opponentTeams.map((team) => team.name)]
+  }, [])
+  const teamRatings = useMemo(() => {
+    return Object.fromEntries([
+      ...clubs.map((club) => [club.name, club.rating]),
+      ...opponentTeams.map((team) => [team.name, team.rating])
+    ])
+  }, [])
 
   const affordablePlayers = useMemo(() => {
     return marketPlayers.map((player) => ({
@@ -139,6 +149,7 @@ function App() {
     setSelectedSlot('st')
     setLineupOverrides({})
     setHomeRevenue(0)
+    setPlayerSeasonStats({})
   }
 
   const handleSignPlayer = (player) => {
@@ -153,6 +164,7 @@ function App() {
     setCurrentWeek(0)
     setMatchResults([])
     setHomeRevenue(0)
+    setPlayerSeasonStats({})
   }
 
   const handleAssignPlayerToSlot = (playerId) => {
@@ -169,6 +181,10 @@ function App() {
       nextOpponent.squad.reduce((sum, player) => sum + player.rating, 0) /
         nextOpponent.squad.length
     )
+    const homeLineup = formationSlots.map((slot) => finalLineup[slot.key]).filter(Boolean)
+    const awayLineup = [...nextOpponent.squad]
+      .sort((firstPlayer, secondPlayer) => secondPlayer.rating - firstPlayer.rating)
+      .slice(0, 11)
     const strengthGap = selectedClubStrength - opponentStrength
     const homeGoals = Math.max(
       0,
@@ -183,19 +199,299 @@ function App() {
       Math.round(2 + selectedClubStrength / 18 + (nextOpponent.rating >= 78 ? 1 : 0))
     )
 
+    const buildOtherFixtures = () => {
+      const remainingTeams = leagueTeams.filter(
+        (teamName) => teamName !== selectedClub.name && teamName !== nextOpponent.name
+      )
+      const rotatedTeams = remainingTeams.map((teamName, index) => {
+        return remainingTeams[(index + currentWeek) % remainingTeams.length]
+      })
+      const fixtures = []
+
+      for (let index = 0; index < rotatedTeams.length; index += 2) {
+        const homeTeam = rotatedTeams[index]
+        const awayTeam = rotatedTeams[index + 1]
+
+        if (!awayTeam) continue
+
+        const ratingGap = (teamRatings[homeTeam] || 74) - (teamRatings[awayTeam] || 74)
+        const homeScore = Math.max(
+          0,
+          Math.min(4, Math.round(1.4 + ratingGap / 8 + ((index + currentWeek) % 2)))
+        )
+        const awayScore = Math.max(
+          0,
+          Math.min(4, Math.round(1.1 - ratingGap / 9 + ((index + currentWeek + 1) % 2)))
+        )
+
+        fixtures.push({
+          homeTeam,
+          awayTeam,
+          homeGoals: homeScore,
+          awayGoals: awayScore
+        })
+      }
+
+      return fixtures
+    }
+
+    const getWeightedContributors = (players, scorerMode = false) => {
+      return players.flatMap((player) => {
+        const multiplier =
+          player.position === 'ST'
+            ? scorerMode
+              ? 5
+              : 2
+            : ['LW', 'RW', 'CF'].includes(player.position)
+              ? scorerMode
+                ? 4
+                : 3
+              : ['CAM', 'CM'].includes(player.position)
+                ? scorerMode
+                  ? 2
+                  : 4
+                : player.position === 'CDM'
+                  ? 1
+                  : 1
+
+        return Array.from({ length: multiplier }, () => player)
+      })
+    }
+
+    const pickRandomPlayer = (players, fallbackPlayers, excludedId = null) => {
+      const availablePlayers = players.filter((player) => player.id !== excludedId)
+
+      if (availablePlayers.length > 0) {
+        return availablePlayers[Math.floor(Math.random() * availablePlayers.length)]
+      }
+
+      const fallback = fallbackPlayers.filter((player) => player.id !== excludedId)
+      return fallback[Math.floor(Math.random() * fallback.length)]
+    }
+
+    const createGoalEvents = (goals, lineup) => {
+      const scorerPool = getWeightedContributors(lineup, true)
+      const assistPool = getWeightedContributors(lineup, false)
+
+      return Array.from({ length: goals }, () => {
+        const scorer = pickRandomPlayer(scorerPool, lineup)
+        const assisted = Math.random() > 0.18
+        const assister = assisted
+          ? pickRandomPlayer(assistPool, lineup, scorer.id)
+          : null
+
+        return {
+          scorer,
+          assister
+        }
+      })
+    }
+
+    const homeEvents = createGoalEvents(homeGoals, homeLineup)
+    const awayEvents = createGoalEvents(awayGoals, awayLineup)
+
+    const nextStats = { ...playerSeasonStats }
+
+    const ensurePlayerSeasonStats = (player) => {
+      if (!nextStats[player.id]) {
+        nextStats[player.id] = {
+          id: player.id,
+          name: player.name,
+          club: player.club,
+          position: player.position,
+          matches: 0,
+          goals: 0,
+          assists: 0,
+          ratingTotal: 0
+        }
+      }
+
+      return nextStats[player.id]
+    }
+
+    const registerLineupAppearance = (player, rating) => {
+      const stats = ensurePlayerSeasonStats(player)
+      stats.matches += 1
+      stats.ratingTotal += rating
+    }
+
+    const registerGoalEvents = (events) => {
+      events.forEach(({ scorer, assister }) => {
+        ensurePlayerSeasonStats(scorer).goals += 1
+
+        if (assister) {
+          ensurePlayerSeasonStats(assister).assists += 1
+        }
+      })
+    }
+
+    const buildRatingMap = (lineup, eventsFor, goalsFor, goalsAgainst) => {
+      const goalCounts = new Map()
+      const assistCounts = new Map()
+
+      eventsFor.forEach(({ scorer, assister }) => {
+        goalCounts.set(scorer.id, (goalCounts.get(scorer.id) || 0) + 1)
+
+        if (assister) {
+          assistCounts.set(assister.id, (assistCounts.get(assister.id) || 0) + 1)
+        }
+      })
+
+      return lineup.map((player) => {
+        const goals = goalCounts.get(player.id) || 0
+        const assists = assistCounts.get(player.id) || 0
+        const cleanSheetBonus =
+          player.position === 'GK' || ['CB', 'LB', 'RB'].includes(player.position)
+            ? goalsAgainst === 0
+              ? 0.5
+              : 0
+            : 0
+        const rating = Math.max(
+          6.0,
+          Math.min(
+            9.8,
+            6.4 +
+              (goalsFor > goalsAgainst ? 0.35 : goalsFor === goalsAgainst ? 0.1 : -0.15) +
+              goals * 1.1 +
+              assists * 0.6 +
+              cleanSheetBonus
+          )
+        )
+
+        return {
+          player,
+          rating: Number(rating.toFixed(1))
+        }
+      })
+    }
+
+    registerGoalEvents(homeEvents)
+    registerGoalEvents(awayEvents)
+
+    buildRatingMap(homeLineup, homeEvents, homeGoals, awayGoals).forEach(({ player, rating }) => {
+      registerLineupAppearance(player, rating)
+    })
+    buildRatingMap(awayLineup, awayEvents, awayGoals, homeGoals).forEach(({ player, rating }) => {
+      registerLineupAppearance(player, rating)
+    })
+
     setMatchResults((currentResults) => [
       ...currentResults,
       {
         week: currentWeek + 1,
-        opponent: nextOpponent.name,
+        homeTeam: selectedClub.name,
+        awayTeam: nextOpponent.name,
         homeGoals,
         awayGoals,
-        gateRevenue
+        gateRevenue,
+        homeEvents: homeEvents.map((event) => ({
+          scorer: event.scorer.name,
+          assister: event.assister?.name || null
+        })),
+        awayEvents: awayEvents.map((event) => ({
+          scorer: event.scorer.name,
+          assister: event.assister?.name || null
+        })),
+        otherFixtures: buildOtherFixtures()
       }
     ])
+    setPlayerSeasonStats(nextStats)
     setHomeRevenue((currentRevenue) => currentRevenue + gateRevenue)
     setCurrentWeek((week) => week + 1)
   }
+
+  const standings = useMemo(() => {
+    const initialRows = leagueTeams.map((teamName) => ({
+      team: teamName,
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      goalDifference: 0,
+      points: 0
+    }))
+
+    const table = new Map(initialRows.map((row) => [row.team, { ...row }]))
+
+    const applyResult = (homeTeam, awayTeam, homeGoals, awayGoals) => {
+      const homeRow = table.get(homeTeam)
+      const awayRow = table.get(awayTeam)
+
+      homeRow.played += 1
+      awayRow.played += 1
+      homeRow.goalsFor += homeGoals
+      homeRow.goalsAgainst += awayGoals
+      awayRow.goalsFor += awayGoals
+      awayRow.goalsAgainst += homeGoals
+
+      if (homeGoals > awayGoals) {
+        homeRow.wins += 1
+        awayRow.losses += 1
+        homeRow.points += 3
+      } else if (homeGoals < awayGoals) {
+        awayRow.wins += 1
+        homeRow.losses += 1
+        awayRow.points += 3
+      } else {
+        homeRow.draws += 1
+        awayRow.draws += 1
+        homeRow.points += 1
+        awayRow.points += 1
+      }
+
+      homeRow.goalDifference = homeRow.goalsFor - homeRow.goalsAgainst
+      awayRow.goalDifference = awayRow.goalsFor - awayRow.goalsAgainst
+    }
+
+    matchResults.forEach((match) => {
+      applyResult(match.homeTeam, match.awayTeam, match.homeGoals, match.awayGoals)
+      match.otherFixtures.forEach((fixture) => {
+        applyResult(fixture.homeTeam, fixture.awayTeam, fixture.homeGoals, fixture.awayGoals)
+      })
+    })
+
+    return [...table.values()]
+      .sort((firstRow, secondRow) => {
+        if (secondRow.points !== firstRow.points) {
+          return secondRow.points - firstRow.points
+        }
+
+        if (secondRow.goalDifference !== firstRow.goalDifference) {
+          return secondRow.goalDifference - firstRow.goalDifference
+        }
+
+        return secondRow.goalsFor - firstRow.goalsFor
+      })
+      .map((row, index) => ({
+        ...row,
+        rank: index + 1
+      }))
+  }, [leagueTeams, matchResults])
+
+  const seasonLeaders = useMemo(() => {
+    const stats = Object.values(playerSeasonStats).map((player) => ({
+      ...player,
+      averageRating:
+        player.matches > 0 ? Number((player.ratingTotal / player.matches).toFixed(2)) : 0
+    }))
+
+    return {
+      scorers: stats
+        .filter((player) => player.goals > 0)
+        .sort((firstPlayer, secondPlayer) => secondPlayer.goals - firstPlayer.goals || secondPlayer.averageRating - firstPlayer.averageRating)
+        .slice(0, 5),
+      assists: stats
+        .filter((player) => player.assists > 0)
+        .sort((firstPlayer, secondPlayer) => secondPlayer.assists - firstPlayer.assists || secondPlayer.averageRating - firstPlayer.averageRating)
+        .slice(0, 5),
+      ratings: stats
+        .filter((player) => player.matches > 0)
+        .sort((firstPlayer, secondPlayer) => secondPlayer.averageRating - firstPlayer.averageRating)
+        .slice(0, 5)
+    }
+  }, [playerSeasonStats])
 
   return (
     <div
@@ -253,6 +549,8 @@ function App() {
             matchResults={matchResults}
             onPlayNextMatch={handlePlayNextMatch}
             homeRevenue={homeRevenue}
+            standings={standings}
+            seasonLeaders={seasonLeaders}
           />
         </aside>
       </main>

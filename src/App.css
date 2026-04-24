@@ -280,6 +280,14 @@ h1 {
   font-size: 28px;
 }
 
+.section-heading.compact {
+  margin-bottom: 12px;
+}
+
+.section-heading.compact h3 {
+  font-size: 22px;
+}
+
 .market-list,
 .squad-list {
   display: grid;
@@ -558,7 +566,7 @@ h1 {
 
 .result-row {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
@@ -581,6 +589,93 @@ h1 {
 .result-row small {
   color: #59635d;
   font-weight: 800;
+}
+
+.result-copy {
+  min-width: 0;
+}
+
+.result-copy strong,
+.result-copy small,
+.leader-row p,
+.leader-card small {
+  display: block;
+}
+
+.season-block {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #dde5df;
+}
+
+.table-list,
+.leaders-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #dde5df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.table-row span,
+.leader-row span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #121512;
+  color: #f7f9fb;
+  font-weight: 900;
+}
+
+.table-row strong,
+.leader-row p {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-row small {
+  color: #59635d;
+  font-weight: 800;
+}
+
+.leader-card {
+  padding: 12px;
+  border: 1px solid #dde5df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.leader-card > strong {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.leader-card small {
+  color: #59635d;
+  font-weight: 800;
+}
+
+.leader-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.leader-row + .leader-row {
+  margin-top: 8px;
 }
 
 .opponent-row {
@@ -698,9 +793,5 @@ h1 {
 
   .result-row {
     grid-template-columns: 42px minmax(0, 1fr);
-  }
-
-  .result-row small {
-    grid-column: 2;
   }
 }
