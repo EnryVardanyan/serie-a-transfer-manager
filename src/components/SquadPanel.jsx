@@ -4,7 +4,8 @@ function SquadPanel({
   selectedSlot,
   onSelectSlot,
   selectedSlotConfig,
-  availableForSlot
+  availableForSlot,
+  onAssignPlayer
 }) {
   return (
     <section className="panel-section squad-section">
@@ -40,11 +41,18 @@ function SquadPanel({
 
         <div className="bench-list">
           {availableForSlot.map((player) => (
-            <div className="bench-player" key={player.id}>
+            <button
+              className={player.isSelected ? 'bench-player active' : 'bench-player'}
+              key={player.id}
+              onClick={() => onAssignPlayer(player.id)}
+            >
               <span>{player.rating}</span>
               <strong>{player.name}</strong>
-              <small>{player.position} - {player.role}</small>
-            </div>
+              <small>
+                {player.position} - {player.role}
+                {player.assignedSlot ? ` - in ${player.assignedSlot}` : ''}
+              </small>
+            </button>
           ))}
         </div>
       </div>

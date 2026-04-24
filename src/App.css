@@ -286,6 +286,42 @@ h1 {
   gap: 10px;
 }
 
+.market-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.market-summary div {
+  padding: 12px;
+  border: 1px solid #dde5df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.market-summary span,
+.market-summary strong,
+.season-income span,
+.season-income strong,
+.player-main small {
+  display: block;
+}
+
+.market-summary span,
+.season-income span,
+.player-main small {
+  color: #59635d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.market-summary strong,
+.season-income strong {
+  margin-top: 6px;
+  font-size: 22px;
+}
+
 .player-row {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) auto;
@@ -295,6 +331,10 @@ h1 {
   border: 1px solid #dde5df;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.player-row.blocked {
+  opacity: 0.72;
 }
 
 .player-rating {
@@ -417,8 +457,12 @@ h1 {
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
+  border: none;
   border-radius: 8px;
   background: rgba(247, 249, 251, 0.08);
+  color: #f7f9fb;
+  cursor: pointer;
+  text-align: left;
 }
 
 .bench-player span {
@@ -436,6 +480,11 @@ h1 {
   grid-column: 2;
   color: #c8d3ca;
   font-weight: 800;
+}
+
+.bench-player.active {
+  outline: 2px solid color-mix(in srgb, var(--club-accent) 75%, #f7f9fb);
+  background: rgba(247, 249, 251, 0.16);
 }
 
 .opponent-section {
@@ -458,6 +507,14 @@ h1 {
 .season-empty.small {
   padding: 10px 12px;
   font-size: 14px;
+}
+
+.season-income {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid #dde5df;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
 .fixture-card {
@@ -501,7 +558,7 @@ h1 {
 
 .result-row {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: 42px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
@@ -519,6 +576,11 @@ h1 {
   background: #121512;
   color: #f7f9fb;
   font-weight: 900;
+}
+
+.result-row small {
+  color: #59635d;
+  font-weight: 800;
 }
 
 .opponent-row {
@@ -612,6 +674,10 @@ h1 {
     grid-template-columns: 48px minmax(0, 1fr);
   }
 
+  .market-summary {
+    grid-template-columns: 1fr;
+  }
+
   .fixture-card {
     flex-direction: column;
     align-items: stretch;
@@ -628,5 +694,13 @@ h1 {
   .player-row button {
     grid-column: 1 / -1;
     width: 100%;
+  }
+
+  .result-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .result-row small {
+    grid-column: 2;
   }
 }

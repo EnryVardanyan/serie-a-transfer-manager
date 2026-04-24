@@ -16,6 +16,8 @@ function App() {
   const [currentWeek, setCurrentWeek] = useState(0)
   const [matchResults, setMatchResults] = useState([])
   const [selectedSlot, setSelectedSlot] = useState('st')
+  const [lineupOverrides, setLineupOverrides] = useState({})
+  const [homeRevenue, setHomeRevenue] = useState(0)
 
   const clubPlayers = useMemo(() => {
     return serieAPlayers
@@ -46,11 +48,40 @@ function App() {
     }, {})
   }, [squadPool])
 
+  const finalLineup = useMemo(() => {
+    const lineup = { ...autoLineup }
+
+    Object.entries(lineupOverrides).forEach(([slotKey, playerId]) => {
+      const slot = formationSlots.find((item) => item.key === slotKey)
+      const player = squadPool.find((item) => item.id === playerId)
+
+      if (!slot || !player || !slot.allowed.includes(player.position)) {
+        return
+      }
+
+      Object.keys(lineup).forEach((existingSlotKey) => {
+        if (lineup[existingSlotKey]?.id === player.id) {
+          delete lineup[existingSlotKey]
+        }
+      })
+
+      lineup[slotKey] = player
+    })
+
+    return lineup
+  }, [autoLineup, lineupOverrides, squadPool])
+
   const selectedSlotConfig = formationSlots.find((slot) => slot.key === selectedSlot)
 
   const availableForSlot = useMemo(() => {
-    return squadPool.filter((player) => selectedSlotConfig.allowed.includes(player.position))
-  }, [selectedSlotConfig, squadPool])
+    return squadPool
+      .filter((player) => selectedSlotConfig.allowed.includes(player.position))
+      .map((player) => ({
+        ...player,
+        isSelected: finalLineup[selectedSlot]?.id === player.id,
+        assignedSlot: formationSlots.find((slot) => finalLineup[slot.key]?.id === player.id)?.label || null
+      }))
+  }, [finalLineup, selectedSlot, selectedSlotConfig, squadPool])
 
   const marketPlayers = useMemo(() => {
     return serieAPlayers
@@ -66,11 +97,11 @@ function App() {
   }, [selectedClub.name])
 
   const spent = signedPlayers.reduce((total, player) => total + player.value, 0)
-  const remainingBudget = selectedClub.budget - spent
+  const remainingBudget = selectedClub.budget + homeRevenue - spent
 
   const selectedClubStrength = useMemo(() => {
     const activePlayers = formationSlots
-      .map((slot) => autoLineup[slot.key])
+      .map((slot) => finalLineup[slot.key])
       .filter(Boolean)
 
     if (!activePlayers.length) {
@@ -79,7 +110,7 @@ function App() {
 
     const totalRating = activePlayers.reduce((sum, player) => sum + player.rating, 0)
     return Math.round(totalRating / activePlayers.length)
-  }, [autoLineup, selectedClub.rating])
+  }, [finalLineup, selectedClub.rating])
 
   const seasonFixtures = useMemo(() => {
     return [...opponentTeams].sort(
@@ -94,7 +125,8 @@ function App() {
     return marketPlayers.map((player) => ({
       ...player,
       canBuy: player.value <= remainingBudget,
-      isSigned: signedPlayers.some((signedPlayer) => signedPlayer.name === player.name)
+      isSigned: signedPlayers.some((signedPlayer) => signedPlayer.name === player.name),
+      valueLabel: player.value >= 50 ? 'Star deal' : player.value >= 25 ? 'First-team move' : 'Rotation deal'
     }))
   }, [marketPlayers, remainingBudget, signedPlayers])
 
@@ -105,6 +137,8 @@ function App() {
     setCurrentWeek(0)
     setMatchResults([])
     setSelectedSlot('st')
+    setLineupOverrides({})
+    setHomeRevenue(0)
   }
 
   const handleSignPlayer = (player) => {
@@ -118,6 +152,14 @@ function App() {
     setSeasonStarted(true)
     setCurrentWeek(0)
     setMatchResults([])
+    setHomeRevenue(0)
+  }
+
+  const handleAssignPlayerToSlot = (playerId) => {
+    setLineupOverrides((currentOverrides) => ({
+      ...currentOverrides,
+      [selectedSlot]: playerId
+    }))
   }
 
   const handlePlayNextMatch = () => {
@@ -136,6 +178,10 @@ function App() {
       0,
       Math.min(4, Math.round(1.1 - strengthGap / 7 + ((currentWeek + 1) % 2)))
     )
+    const gateRevenue = Math.max(
+      1,
+      Math.round(2 + selectedClubStrength / 18 + (nextOpponent.rating >= 78 ? 1 : 0))
+    )
 
     setMatchResults((currentResults) => [
       ...currentResults,
@@ -143,9 +189,11 @@ function App() {
         week: currentWeek + 1,
         opponent: nextOpponent.name,
         homeGoals,
-        awayGoals
+        awayGoals,
+        gateRevenue
       }
     ])
+    setHomeRevenue((currentRevenue) => currentRevenue + gateRevenue)
     setCurrentWeek((week) => week + 1)
   }
 
@@ -172,6 +220,7 @@ function App() {
           signedPlayersCount={signedPlayers.length}
           databaseCount={serieAPlayers.length}
           opponentsCount={opponentTeams.length}
+          homeRevenue={homeRevenue}
           seasonFixturesCount={seasonFixtures.length}
           seasonStarted={seasonStarted}
           onStartSeason={handleStartSeason}
@@ -180,14 +229,19 @@ function App() {
         />
 
         <aside className="manager-panel">
-          <TransferMarketPanel players={affordablePlayers} onSignPlayer={handleSignPlayer} />
+          <TransferMarketPanel
+            players={affordablePlayers}
+            onSignPlayer={handleSignPlayer}
+            remainingBudget={remainingBudget}
+          />
           <SquadPanel
             formationSlots={formationSlots}
-            autoLineup={autoLineup}
+            autoLineup={finalLineup}
             selectedSlot={selectedSlot}
             onSelectSlot={setSelectedSlot}
             selectedSlotConfig={selectedSlotConfig}
             availableForSlot={availableForSlot}
+            onAssignPlayer={handleAssignPlayerToSlot}
           />
           <SeasonPanel
             seasonStarted={seasonStarted}
@@ -198,6 +252,7 @@ function App() {
             nextOpponent={nextOpponent}
             matchResults={matchResults}
             onPlayNextMatch={handlePlayNextMatch}
+            homeRevenue={homeRevenue}
           />
         </aside>
       </main>

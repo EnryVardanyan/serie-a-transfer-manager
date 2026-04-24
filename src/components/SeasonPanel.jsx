@@ -6,13 +6,19 @@ function SeasonPanel({
   selectedClubName,
   nextOpponent,
   matchResults,
-  onPlayNextMatch
+  onPlayNextMatch,
+  homeRevenue
 }) {
   return (
     <section className="panel-section opponent-section">
       <div className="section-heading">
         <p className="eyebrow">Season flow</p>
         <h3>Next fixture</h3>
+      </div>
+
+      <div className="season-income">
+        <span>Home match revenue</span>
+        <strong>EUR {homeRevenue}M</strong>
       </div>
 
       {!seasonStarted ? (
@@ -51,6 +57,7 @@ function SeasonPanel({
                     <strong>
                       {selectedClubName} {match.homeGoals}-{match.awayGoals} {match.opponent}
                     </strong>
+                    <small>Gate: EUR {match.gateRevenue}M</small>
                   </article>
                 ))
             )}
