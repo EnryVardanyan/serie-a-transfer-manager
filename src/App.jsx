@@ -109,6 +109,45 @@ function generateRoundRobinSchedule(teamNames) {
   return [...rounds, ...secondLeg]
 }
 
+const emergencyCoverMap = {
+  lb: ['CB', 'RB', 'LM', 'CDM'],
+  cb1: ['LB', 'RB', 'CDM'],
+  cb2: ['LB', 'RB', 'CDM'],
+  rb: ['CB', 'LB', 'RM', 'CDM'],
+  cdm: ['CB', 'CAM'],
+  cm1: ['CDM', 'LW', 'RW', 'LM', 'RM'],
+  cm2: ['CDM', 'LW', 'RW', 'LM', 'RM'],
+  lw: ['RW', 'LM', 'CAM', 'CM'],
+  st: ['CAM', 'RW', 'LW'],
+  rw: ['LW', 'RM', 'CAM', 'CM']
+}
+
+function getSlotCandidatePool(slot, players) {
+  if (!slot) {
+    return []
+  }
+
+  const primaryPlayers = players
+    .filter((player) => slot.allowed.includes(player.position))
+    .map((player) => ({
+      ...player,
+      isEmergencyCover: false
+    }))
+
+  if (primaryPlayers.length > 0) {
+    return primaryPlayers
+  }
+
+  const emergencyPositions = emergencyCoverMap[slot.key] || []
+
+  return players
+    .filter((player) => emergencyPositions.includes(player.position))
+    .map((player) => ({
+      ...player,
+      isEmergencyCover: true
+    }))
+}
+
 function App() {
   const [selectedClub, setSelectedClub] = useState(clubs[0])
   const [signedPlayers, setSignedPlayers] = useState([])
@@ -119,6 +158,7 @@ function App() {
   const [selectedSlot, setSelectedSlot] = useState('st')
   const [lineupOverrides, setLineupOverrides] = useState({})
   const [homeRevenue, setHomeRevenue] = useState(0)
+  const [matchRewards, setMatchRewards] = useState(0)
   const [playerSeasonStats, setPlayerSeasonStats] = useState({})
   const [teamCondition, setTeamCondition] = useState(getInitialTeamCondition)
   const [unavailablePlayers, setUnavailablePlayers] = useState({})
@@ -168,9 +208,10 @@ function App() {
     const usedIds = new Set()
 
     return formationSlots.reduce((lineup, slot) => {
-      const candidate = availableSquadPool.find(
-        (player) => slot.allowed.includes(player.position) && !usedIds.has(player.id)
-      )
+      const candidate = getSlotCandidatePool(
+        slot,
+        availableSquadPool.filter((player) => !usedIds.has(player.id))
+      )[0]
 
       if (candidate) {
         usedIds.add(candidate.id)
@@ -186,9 +227,11 @@ function App() {
 
     Object.entries(lineupOverrides).forEach(([slotKey, playerId]) => {
       const slot = formationSlots.find((item) => item.key === slotKey)
-      const player = availableSquadPool.find((item) => item.id === playerId)
+      const player = getSlotCandidatePool(slot, availableSquadPool).find(
+        (item) => item.id === playerId
+      )
 
-      if (!slot || !player || !slot.allowed.includes(player.position)) {
+      if (!slot || !player) {
         return
       }
 
@@ -207,8 +250,7 @@ function App() {
   const selectedSlotConfig = formationSlots.find((slot) => slot.key === selectedSlot)
 
   const availableForSlot = useMemo(() => {
-    return availableSquadPool
-      .filter((player) => selectedSlotConfig.allowed.includes(player.position))
+    return getSlotCandidatePool(selectedSlotConfig, availableSquadPool)
       .map((player) => ({
         ...player,
         isSelected: finalLineup[selectedSlot]?.id === player.id,
@@ -240,7 +282,7 @@ function App() {
   }, [selectedClub.name])
 
   const spent = signedPlayers.reduce((total, player) => total + player.value, 0)
-  const remainingBudget = selectedClub.budget + homeRevenue - spent
+  const remainingBudget = selectedClub.budget + homeRevenue + matchRewards - spent
 
   const selectedClubStrength = useMemo(() => {
     const activePlayers = formationSlots
@@ -295,9 +337,10 @@ function App() {
     const lineup = []
 
     formationSlots.forEach((slot) => {
-      const candidate = availablePlayers.find(
-        (player) => slot.allowed.includes(player.position) && !usedIds.has(player.id)
-      )
+      const candidate = getSlotCandidatePool(
+        slot,
+        availablePlayers.filter((player) => !usedIds.has(player.id))
+      )[0]
 
       if (candidate) {
         usedIds.add(candidate.id)
@@ -324,6 +367,7 @@ function App() {
     setSelectedSlot('st')
     setLineupOverrides({})
     setHomeRevenue(0)
+    setMatchRewards(0)
     setPlayerSeasonStats({})
     setTeamCondition(getInitialTeamCondition())
     setUnavailablePlayers({})
@@ -342,6 +386,7 @@ function App() {
     setCurrentWeek(0)
     setMatchResults([])
     setHomeRevenue(0)
+    setMatchRewards(0)
     setPlayerSeasonStats({})
     setTeamCondition(getInitialTeamCondition())
     setUnavailablePlayers({})
@@ -446,6 +491,13 @@ function App() {
           )
         )
       : 0
+    const selectedClubGoals =
+      selectedMatch.homeTeam === selectedClub.name ? selectedMatch.homeGoals : selectedMatch.awayGoals
+    const opponentGoals =
+      selectedMatch.homeTeam === selectedClub.name ? selectedMatch.awayGoals : selectedMatch.homeGoals
+    const resultReward =
+      selectedClubGoals > opponentGoals ? 4 : selectedClubGoals === opponentGoals ? 2 : 0
+    const totalReward = gateRevenue + resultReward
 
     const getWeightedContributors = (players, scorerMode = false) => {
       return players.flatMap((player) => {
@@ -723,6 +775,8 @@ function App() {
         homeGoals: selectedMatch.homeGoals,
         awayGoals: selectedMatch.awayGoals,
         gateRevenue,
+        resultReward,
+        totalReward,
         isHomeMatch,
         homeEvents: homeEvents.map((event) => ({
           scorer: event.scorer.name,
@@ -741,6 +795,9 @@ function App() {
     setUnavailablePlayers(nextUnavailablePlayers)
     if (gateRevenue > 0) {
       setHomeRevenue((currentRevenue) => currentRevenue + gateRevenue)
+    }
+    if (resultReward > 0) {
+      setMatchRewards((currentRewards) => currentRewards + resultReward)
     }
     setCurrentWeek((week) => week + 1)
   }
@@ -863,6 +920,7 @@ function App() {
           databaseCount={serieAPlayers.length}
           opponentsCount={opponentTeams.length}
           homeRevenue={homeRevenue}
+          matchRewards={matchRewards}
           seasonFixturesCount={fullSeasonSchedule.length}
           seasonStarted={seasonStarted}
           onStartSeason={handleStartSeason}
@@ -901,6 +959,7 @@ function App() {
             matchResults={matchResults}
             onPlayNextMatch={handlePlayNextMatch}
             homeRevenue={homeRevenue}
+            matchRewards={matchRewards}
             standings={standings}
             seasonLeaders={seasonLeaders}
           />

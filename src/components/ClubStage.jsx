@@ -7,6 +7,7 @@ function ClubStage({
   databaseCount,
   opponentsCount,
   homeRevenue,
+  matchRewards,
   seasonFixturesCount,
   seasonStarted,
   onStartSeason,
@@ -47,6 +48,10 @@ function ClubStage({
         <div>
           <span>Matchday income</span>
           <strong>EUR {homeRevenue}M</strong>
+        </div>
+        <div>
+          <span>Result rewards</span>
+          <strong>EUR {matchRewards}M</strong>
         </div>
       </div>
 

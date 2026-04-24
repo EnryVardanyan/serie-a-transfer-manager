@@ -51,6 +51,7 @@ function SquadPanel({
               <strong>{player.name}</strong>
               <small>
                 {player.position} - {player.role}
+                {player.isEmergencyCover ? ' - emergency cover' : ''}
                 {player.assignedSlot ? ` - in ${player.assignedSlot}` : ''}
               </small>
             </button>

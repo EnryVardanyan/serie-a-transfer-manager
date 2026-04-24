@@ -16,6 +16,7 @@ function SeasonPanel({
   matchResults,
   onPlayNextMatch,
   homeRevenue,
+  matchRewards,
   standings,
   seasonLeaders
 }) {
@@ -29,6 +30,11 @@ function SeasonPanel({
       <div className="season-income">
         <span>Home match revenue</span>
         <strong>EUR {homeRevenue}M</strong>
+      </div>
+
+      <div className="season-income">
+        <span>Result rewards</span>
+        <strong>EUR {matchRewards}M</strong>
       </div>
 
       {!seasonStarted ? (
@@ -81,27 +87,35 @@ function SeasonPanel({
               matchResults
                 .slice()
                 .reverse()
-                .map((match) => (
-                  <article className="result-row" key={`${match.week}-${match.homeTeam}-${match.awayTeam}`}>
-                    <span>W{match.week}</span>
-                    <div className="result-copy">
-                      <strong>
-                        {match.homeTeam} {match.homeGoals}-{match.awayGoals} {match.awayTeam}
-                      </strong>
-                      <small>
-                        {match.isHomeMatch
-                          ? `Gate: EUR ${match.gateRevenue}M`
-                          : 'No home revenue'}
-                        {match.homeEvents.length > 0
-                          ? ` - Scorers: ${match.homeEvents.map((event) => event.scorer).join(', ')}`
-                          : ''}
-                        {match.availabilityNews?.length > 0
-                          ? ` - News: ${match.availabilityNews.join(', ')}`
-                          : ''}
-                      </small>
-                    </div>
-                  </article>
-                ))
+                .map((match) => {
+                  const selectedClubEvents =
+                    match.homeTeam === selectedClubName ? match.homeEvents : match.awayEvents
+
+                  return (
+                    <article className="result-row" key={`${match.week}-${match.homeTeam}-${match.awayTeam}`}>
+                      <span>W{match.week}</span>
+                      <div className="result-copy">
+                        <strong>
+                          {match.homeTeam} {match.homeGoals}-{match.awayGoals} {match.awayTeam}
+                        </strong>
+                        <small>
+                          {match.isHomeMatch
+                            ? `Gate: EUR ${match.gateRevenue}M`
+                            : 'No home revenue'}
+                          {match.resultReward > 0
+                            ? ` - Reward: EUR ${match.resultReward}M`
+                            : ''}
+                          {selectedClubEvents.length > 0
+                            ? ` - Scorers: ${selectedClubEvents.map((event) => event.scorer).join(', ')}`
+                            : ''}
+                          {match.availabilityNews?.length > 0
+                            ? ` - News: ${match.availabilityNews.join(', ')}`
+                            : ''}
+                        </small>
+                      </div>
+                    </article>
+                  )
+                })
             )}
           </div>
         </>
