@@ -192,6 +192,29 @@ h1 {
   line-height: 1.55;
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.hero-actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 14px 18px;
+  background: #1f9d55;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.hero-actions span {
+  color: #dce5dd;
+  font-weight: 800;
+}
+
 .club-picker {
   position: relative;
   z-index: 1;
@@ -360,6 +383,80 @@ h1 {
   gap: 8px;
 }
 
+.season-empty {
+  padding: 14px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #59635d;
+  font-weight: 800;
+}
+
+.season-empty.small {
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.fixture-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid #dde5df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.fixture-card span,
+.fixture-card small {
+  display: block;
+  color: #59635d;
+  font-weight: 800;
+}
+
+.fixture-card strong {
+  display: block;
+  margin: 6px 0;
+}
+
+.fixture-card button {
+  border: none;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #1f9d55;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.results-list {
+  display: grid;
+  gap: 8px;
+}
+
+.result-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #dde5df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.result-row span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #121512;
+  color: #f7f9fb;
+  font-weight: 900;
+}
+
 .opponent-row {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) auto;
@@ -439,8 +536,25 @@ h1 {
     font-size: 38px;
   }
 
+  .hero-actions {
+    align-items: stretch;
+  }
+
+  .hero-actions button {
+    width: 100%;
+  }
+
   .player-row {
     grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .fixture-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fixture-card button {
+    width: 100%;
   }
 
   .squad-slot {
