@@ -549,6 +549,8 @@ h1 {
 .opponent-section {
   background: rgba(247, 249, 251, 0.94);
   grid-column: 1 / -1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .opponent-list {
@@ -570,11 +572,42 @@ h1 {
 }
 
 .season-income {
-  margin-bottom: 8px;
+  margin-bottom: 0;
   padding: 10px 12px;
   border: 1px solid #dde5df;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.season-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+  gap: 14px;
+}
+
+.season-main,
+.season-side {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.season-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.season-side {
+  display: grid;
+  grid-template-rows: minmax(160px, 1fr) minmax(110px, auto);
+  gap: 10px;
+}
+
+.season-money-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .fixture-card {
@@ -652,7 +685,9 @@ h1 {
 .results-list {
   display: grid;
   gap: 8px;
-  max-height: 160px;
+  flex: 1;
+  min-height: 96px;
+  max-height: none;
 }
 
 .result-row {
@@ -694,9 +729,10 @@ h1 {
 }
 
 .season-block {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #dde5df;
+  min-height: 0;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .table-list,
@@ -706,12 +742,34 @@ h1 {
 }
 
 .table-list {
-  max-height: 180px;
+  max-height: none;
 }
 
 .leaders-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  max-height: 150px;
+  max-height: 118px;
+}
+
+.season-side .season-block:first-child {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.season-side .season-block:first-child .table-list {
+  min-height: 0;
+}
+
+.season-side .section-heading.compact {
+  margin-bottom: 8px;
+}
+
+.season-side .leader-card {
+  padding: 10px;
+}
+
+.season-side .leader-row span {
+  width: 32px;
+  height: 32px;
 }
 
 .table-row {
@@ -841,6 +899,17 @@ h1 {
 
   .opponent-section {
     grid-column: auto;
+    display: block;
+  }
+
+  .season-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .season-side {
+    display: block;
+    overflow: visible;
   }
 
   .market-list,
